@@ -1,0 +1,36 @@
+
+body {
+    background-color: #0c1022;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 2rem;
+}
+.logo {
+    width: 200px;
+    margin-bottom: 2rem;
+}
+.features div {
+    margin: 1rem 0;
+    font-size: 1.2rem;
+}
+.buttons {
+    margin-top: 2rem;
+}
+.main-btn {
+    background: #2056e3;
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 1.2rem;
+}
+.link-row {
+    margin: 1rem 0;
+}
+.link-btn {
+    margin: 0 1rem;
+    color: #00bfff;
+    text-decoration: none;
+    font-size: 1rem;
+}
