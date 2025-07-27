@@ -1,82 +1,112 @@
-body {
-  margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background-color: #0d1117;
-  color: #fff;
-  scroll-behavior: smooth;
+/* Reset and base styling */
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: #000;
+    color: white;
+    height: 100%;
+    position: relative;
+    overflow-x: hidden;
 }
 
-.hero {
-  position: relative;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  overflow: hidden;
+/* Background logo watermark */
+body::before {
+    content: "";
+    background: url('logo.png') no-repeat center center;
+    background-size: 80%;
+    opacity: 0.08;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
 }
 
-.background-logo {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.08; /* Increase this for more visibility */
-  z-index: 0;
+/* Main content container */
+.container {
+    position: relative;
+    z-index: 2;
+    padding: 60px 20px;
+    text-align: center;
 }
 
-.overlay-content {
-  position: relative;
-  z-index: 2;
-  max-width: 90%;
-  padding: 20px;
+/* Section spacing */
+section {
+    margin: 40px 0;
 }
 
 h1 {
-  font-size: 3em;
-  margin: 0.2em 0;
+    font-size: 3em;
+    margin-bottom: 10px;
+}
+
+h2 {
+    font-size: 2em;
+    margin-bottom: 15px;
 }
 
 p {
-  font-size: 1.2em;
-  max-width: 600px;
-  margin: 0 auto 1em;
+    font-size: 1.2em;
+    max-width: 700px;
+    margin: 0 auto;
 }
 
-.buttons {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-  flex-wrap: wrap;
+/* Payment button */
+.payment-btn {
+    margin: 30px auto;
 }
 
-.buttons a {
-  padding: 12px 24px;
-  background-color: #1f6feb;
-  color: white;
-  text-decoration: none;
-  border-radius: 6px;
-  transition: background 0.3s ease;
+.payment-btn img {
+    max-width: 250px;
+    cursor: pointer;
 }
 
-.buttons a:hover {
-  background-color: #388bfd;
+/* Credentials form */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 400px;
+    margin: 30px auto;
+    background: rgba(255,255,255,0.05);
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
 }
 
-.section {
-  padding: 60px 20px;
-  max-width: 800px;
-  margin: 0 auto;
-  text-align: center;
+input, select {
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 1em;
 }
 
-ul {
-  list-style: none;
-  padding: 0;
-  text-align: left;
+input[type="submit"] {
+    background: #28a745;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s;
 }
 
-ul li {
-  margin-bottom: 10px;
-  font-size: 1.1em;
+input[type="submit"]:hover {
+    background: #218838;
+}
+
+/* Links */
+a {
+    color: #00bfff;
+    text-decoration: none;
+    display: block;
+    margin: 10px auto;
+    font-weight: bold;
+}
+
+/* Footer */
+footer {
+    margin-top: 80px;
+    font-size: 0.9em;
+    opacity: 0.7;
 }
