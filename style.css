@@ -4,89 +4,99 @@ body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background-color: #000;
   color: #fff;
-  height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
   position: relative;
+  min-height: 100vh;
 }
 
 .logo {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 500px;
-  transform: translate(-50%, -60%);
-  opacity: 0.15; /* Brighter */
+  width: 600px;
+  transform: translate(-50%, -50%);
+  opacity: 0.25;
+  filter: contrast(160%) brightness(140%);
   z-index: 0;
+  pointer-events: none;
 }
 
 .container {
   position: relative;
   z-index: 2;
   text-align: center;
-  padding: 40px 20px;
+  padding: 3rem 1rem;
 }
 
 h1 {
-  font-size: 3rem;
-  margin-bottom: 10px;
+  font-size: 2.8rem;
+  margin-bottom: 0.5rem;
 }
 
 p {
   font-size: 1.2rem;
-  margin-bottom: 30px;
+  margin-bottom: 2rem;
 }
 
 .features {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 16px;
-  margin-bottom: 30px;
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
 
 .feature {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 15px 20px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem 1.5rem;
   border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.1);
-  backdrop-filter: blur(4px);
-  font-size: 1rem;
-  transition: all 0.3s ease;
+  min-width: 160px;
+  font-size: 0.95rem;
 }
 
-.feature:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.button {
-  background-color: #111;
-  color: #fff;
-  border: 1px solid #444;
-  padding: 12px 20px;
-  border-radius: 8px;
-  margin: 8px;
-  text-decoration: none;
+.main-button {
   display: inline-block;
-  transition: 0.3s ease;
-}
-
-.button:hover {
-  background-color: #222;
-}
-
-.primary {
-  background-color: #1a5cff;
-  border: none;
+  background-color: #2962ff;
+  color: white;
+  padding: 0.9rem 2rem;
+  font-size: 1.1rem;
   font-weight: bold;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-bottom: 2rem;
+  transition: background 0.3s;
 }
-
-.primary:hover {
-  background-color: #0040ff;
+.main-button:hover {
+  background-color: #0039cb;
 }
 
 .links {
-  margin-top: 30px;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  gap: 1rem;
+}
+
+.button {
+  background-color: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  color: white;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: background 0.3s;
+}
+.button:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+@media (max-width: 600px) {
+  .features {
+    flex-direction: column;
+  }
+  .links {
+    flex-direction: column;
+  }
 }
