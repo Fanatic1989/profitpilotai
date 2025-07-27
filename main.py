@@ -4,7 +4,8 @@ import asyncio
 import functools
 import concurrent.futures
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -14,7 +15,7 @@ from telegram.error import TelegramError
 import discord
 from discord.ext import commands
 
-# ==== ENV ====
+# ==== LOAD ENV ====
 load_dotenv()
 
 PORT = int(os.environ.get("PORT", 8000))
@@ -27,6 +28,9 @@ DISCORD_GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))
 DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID", "0"))
 
 app = FastAPI()
+
+# Serve static files (CSS, images)
+app.mount("/static", StaticFiles(directory="."), name="static")
 
 # ==== MODELS ====
 class NowPaymentsWebhook(BaseModel):
@@ -42,10 +46,10 @@ class NowPaymentsWebhook(BaseModel):
 
 # ==== STATE ====
 active_users = {}
-executor = concurrent.futures.ThreadPoolExecutor()
 
-# ==== TELEGRAM ====
+# ==== TELEGRAM BOT ====
 telegram_bot = TelegramBot(token=TELEGRAM_TOKEN)
+executor = concurrent.futures.ThreadPoolExecutor()
 
 async def send_telegram_message(message: str):
     try:
@@ -57,7 +61,7 @@ async def send_telegram_message(message: str):
         print(f"Telegram error: {e}")
 
 def get_telegram_user_id(email: str):
-    return 123456789  # Replace this with actual mapping
+    return 123456789  # Replace with actual logic
 
 async def give_telegram_access(user_email):
     try:
@@ -70,7 +74,7 @@ async def give_telegram_access(user_email):
     except TelegramError as e:
         print(f"⚠️ Telegram error: {e}")
 
-# ==== DISCORD ====
+# ==== DISCORD BOT ====
 intents = discord.Intents.default()
 intents.messages = True
 intents.guilds = True
@@ -103,9 +107,9 @@ async def give_discord_access(user_email):
         print("⚠️ Discord guild not found")
 
 # ==== ROUTES ====
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
-    return {"message": "ProfitPilot backend running ✅"}
+    return FileResponse("index.html")
 
 @app.head("/")
 async def root_head():
@@ -123,12 +127,14 @@ async def handle_webhook(request: Request):
         user_email = webhook_data.order_description
 
         message = f"💰 Payment Received:\nStatus: {status}\nAmount: {amount} {currency}"
+
         await send_telegram_message(message)
         await send_discord_message(message)
 
         if status == "confirmed":
             await give_telegram_access(user_email)
             await give_discord_access(user_email)
+
             active_users[user_email] = {
                 "paid": True,
                 "timestamp": asyncio.get_event_loop().time(),
@@ -142,11 +148,12 @@ async def handle_webhook(request: Request):
 async def deactivate_user(email: str):
     if email not in active_users:
         raise HTTPException(status_code=404, detail="User not found")
+
     del active_users[email]
     print(f"⛔ User {email} deactivated")
     return {"status": "removed"}
 
-# ==== STARTUP ====
+# ==== BOT STARTUP ====
 def start_discord_bot():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -155,7 +162,7 @@ def start_discord_bot():
 def start_telegram_bot():
     print("✅ Telegram bot initialized.")
 
-# ==== MAIN ====
+# ==== MAIN RUN ====
 if __name__ == "__main__":
     import uvicorn
     import threading
@@ -163,4 +170,3 @@ if __name__ == "__main__":
     threading.Thread(target=start_discord_bot, daemon=True).start()
     start_telegram_bot()
     uvicorn.run(app, host="0.0.0.0", port=PORT)
-# Main backend code goes here
