@@ -1,57 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF‑8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>ProfitPilot AI</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/style.css"/>
 </head>
 <body>
-  <header>
-    <img src="/logo.png" alt="Logo" class="logo" />
+  <div class="wrapper">
+    <img src="/logo.png" class="logo" alt="ProfitPilot Logo"/>
     <h1>ProfitPilot AI</h1>
-    <p>Your all-in-one crypto trading assistant.</p>
-  </header>
+    <p>Your all-in-one trading assistant.</p>
 
-  <main>
-    <section class="hero">
-      <h2>Get Started</h2>
-      <p>Automate your trading with confidence.</p>
-      <div class="buttons">
-        <a href="{{ telegram_link }}" class="btn telegram" target="_blank">Join Telegram</a>
-        <a href="{{ discord_link }}" class="btn discord" target="_blank">Join Discord</a>
-      </div>
-    </section>
+    <div class="btn-container">
+      <a href="{{ telegram_link }}" class="btn telegram" target="_blank">Join Telegram</a>
+      <a href="{{ discord_link }}" class="btn discord" target="_blank">Join Discord</a>
+    </div>
 
-    <section class="pricing">
+    <div class="pricing">
       <h2>Pricing</h2>
       <div class="card">
         <h3>Monthly Access</h3>
         <p>$100 USDT</p>
-        <p>Includes bot, support, and updates</p>
         <a href="{{ telegram_link }}" class="btn">Pay & Access</a>
       </div>
-    </section>
+    </div>
 
-    <section class="faq">
+    <div class="faq">
       <h2>FAQ</h2>
       <details>
-        <summary>What payment methods are accepted?</summary>
-        <p>Only USDT via NowPayments is accepted currently.</p>
+        <summary>Payment Method?</summary>
+        <p>USDT via NowPayments.</p>
       </details>
       <details>
-        <summary>How long does activation take?</summary>
-        <p>Access is usually granted within a few seconds after confirmed payment.</p>
+        <summary>Activation Time?</summary>
+        <p>Usually seconds after confirmation.</p>
       </details>
-      <details>
-        <summary>What platforms does the bot support?</summary>
-        <p>Currently supports Deriv, Binance, and more coming soon.</p>
-      </details>
-    </section>
-  </main>
+    </div>
 
-  <footer>
-    <p>&copy; 2025 ProfitPilot AI</p>
-  </footer>
+    <footer>© 2025 ProfitPilot AI</footer>
+  </div>
 </body>
 </html>
