@@ -1,21 +1,40 @@
 body {
   margin: 0;
-  font-family: 'Segoe UI', sans-serif;
-  background: url('https://i.imgur.com/z7a4W7f.jpg') no-repeat center center fixed;
-  background-size: cover;
-  color: #fff;
-  text-align: center;
-}
-
-.container {
-  max-width: 900px;
-  margin: auto;
-  padding: 40px 20px;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #000;
+  color: white;
+  overflow-x: hidden;
+  min-height: 100vh;
+  position: relative;
 }
 
 .logo {
-  width: 240px;
-  margin-bottom: 30px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%);
+  width: 400px;
+  opacity: 0.08;
+  z-index: 0;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 100px 20px;
+}
+
+.title {
+  font-size: 2.8em;
+  margin: 0.5em 0 0.2em;
+}
+
+.subtitle {
+  font-size: 1.2em;
+  color: #bbb;
+  margin-bottom: 2em;
 }
 
 .features {
@@ -23,74 +42,37 @@ body {
   flex-wrap: wrap;
   justify-content: center;
   gap: 15px;
-  margin-bottom: 30px;
+  margin-bottom: 2em;
 }
 
 .feature {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
   padding: 15px 20px;
-  width: 160px;
-  text-align: center;
-}
-
-.feature i {
-  font-size: 26px;
-  display: block;
-  margin-bottom: 10px;
-}
-
-.feature span {
-  font-size: 15px;
-  display: block;
+  border-radius: 10px;
+  min-width: 180px;
+  font-size: 0.95em;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .btn {
   display: inline-block;
-  padding: 12px 25px;
-  border-radius: 8px;
   margin: 10px;
-  font-size: 16px;
-  font-weight: 500;
+  padding: 12px 25px;
+  font-size: 1em;
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
   text-decoration: none;
-  transition: background 0.3s;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .primary {
-  background-color: #2162f3;
-  color: #fff;
-}
-
-.primary:hover {
-  background-color: #1b4ec9;
-}
-
-.telegram {
-  background-color: #229ED9;
-  color: white;
-}
-
-.discord {
-  background-color: #5865F2;
-  color: white;
-}
-
-.secondary {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.secondary:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-}
-
-.links,
-.secondary-links {
-  margin-top: 20px;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 15px;
+  background-color: #1e60ff;
+  border: none;
+  font-weight: bold;
 }
