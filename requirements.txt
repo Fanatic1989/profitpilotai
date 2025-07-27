@@ -1,6 +1,5 @@
 fastapi
 uvicorn
 python-dotenv
-httpx
-discord.py
-python-telegram-bot
+jinja2
+starlette
