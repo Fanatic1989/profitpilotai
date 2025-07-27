@@ -4,8 +4,9 @@ import asyncio
 import functools
 import concurrent.futures
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -26,11 +27,14 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 TELEGRAM_GROUP_ID = os.environ.get("TELEGRAM_GROUP_ID")
 DISCORD_GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))
 DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID", "0"))
+TELEGRAM_LINK = os.environ.get("TELEGRAM_LINK", "#")
+DISCORD_LINK = os.environ.get("DISCORD_LINK", "#")
 
 app = FastAPI()
 
-# Serve static files (CSS, images)
-app.mount("/static", StaticFiles(directory="."), name="static")
+# ==== SETUP FRONTEND TEMPLATES & STATIC FILES ====
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
 # ==== MODELS ====
 class NowPaymentsWebhook(BaseModel):
@@ -108,8 +112,12 @@ async def give_discord_access(user_email):
 
 # ==== ROUTES ====
 @app.get("/", response_class=HTMLResponse)
-async def root():
-    return FileResponse("index.html")
+async def serve_index(request: Request):
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "telegram_link": TELEGRAM_LINK,
+        "discord_link": DISCORD_LINK
+    })
 
 @app.head("/")
 async def root_head():
