@@ -1,68 +1,80 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ProfitPilot AI</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="background"></div>
+  <div class="container">
+    <img src="logo.png" alt="ProfitPilotAI Logo" class="logo">
+    <h1>ProfitPilot AI</h1>
+    <p class="tagline">Automated Crypto Trading Intelligence</p>
 
-  <div class="hero">
-    <img src="logo.png" alt="ProfitPilot Logo" class="background-logo" />
-    <div class="overlay-content">
-      <h1>ProfitPilot AI</h1>
-      <p>Your all-in-one crypto and sports trading automation hub.</p>
-      <div class="buttons">
-        <a href="#get-started">Get Started</a>
-        <a href="#pricing">Pricing</a>
-        <a href="#faq">FAQ</a>
+    <div class="pricing">
+      <h2>Access the Bot for $100 USDT</h2>
+      <a href="https://nowpayments.io/payment/?iid=4975255269&source=button" target="_blank">
+        <img src="https://nowpayments.io/images/embeds/payment-button-black.svg" alt="Pay with Crypto">
+      </a>
+    </div>
+
+    <div id="locked">
+      <p><strong>Note:</strong> Access to Telegram, Discord, and the Trading Bot is granted after payment.</p>
+    </div>
+
+    <div id="unlocked" style="display: none">
+      <h3>Enter Your Bot Info</h3>
+      <form id="userForm">
+        <input type="text" name="name" placeholder="Full Name" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="text" name="telegram" placeholder="Telegram Username" required>
+        <input type="text" name="discord" placeholder="Discord ID" required>
+        <input type="text" name="deriv_id" placeholder="Deriv Login ID" required>
+        <input type="password" name="api_token" placeholder="Deriv API Token" required>
+
+        <label>Trading Strategy:</label>
+        <select name="strategy">
+          <option value="scalping">Scalping</option>
+          <option value="day">Day Trading</option>
+          <option value="swing">Swing Trading</option>
+          <option value="binary">Binary Options</option>
+        </select>
+
+        <button type="submit">Submit</button>
+      </form>
+
+      <div class="links">
+        <a href="https://t.me/+tESrN9X3RyA2Y2Ux" target="_blank">Join Telegram</a>
+        <a href="https://discord.gg/FjFq4R3t" target="_blank">Join Discord</a>
       </div>
     </div>
   </div>
 
-  <section id="get-started" class="section">
-    <h2>🚀 Get Started</h2>
-    <p>To access our AI tools and join the Telegram/Discord, make your payment below.</p>
-  </section>
+  <script>
+    async function checkAccess() {
+      const res = await fetch('/unlock-status');
+      const { access } = await res.json();
+      if (access) {
+        document.getElementById('locked').style.display = 'none';
+        document.getElementById('unlocked').style.display = 'block';
+      }
+    }
+    checkAccess();
 
-  <section id="pricing" class="section">
-    <h2>💳 Pricing</h2>
-    <ul>
-      <li><strong>$50 USDT / month</strong> – Basic Access (Telegram Only)</li>
-      <li><strong>$100 USDT / month</strong> – Premium Access (Telegram + Discord)</li>
-    </ul>
-  </section>
-
-  <section id="payment" class="section">
-    <h2>💸 Make a Payment</h2>
-    <p>Pay securely with crypto via NOWPayments:</p>
-    <div style="display: flex; justify-content: center;">
-      <a href="https://nowpayments.io/payment/?iid=4975255269&source=button" target="_blank" rel="noreferrer noopener">
-        <img src="https://nowpayments.io/images/embeds/payment-button-black.svg" alt="Crypto payment button by NOWPayments" style="width: 220px; margin-top: 20px;">
-      </a>
-    </div>
-  </section>
-
-  <section id="faq" class="section">
-    <h2>❓ FAQ</h2>
-    <p><strong>How do I get access?</strong><br>
-    Once your payment is confirmed, access will be automatically granted to Telegram and/or Discord.</p>
-
-    <p><strong>How fast is activation?</strong><br>
-    Within seconds of payment confirmation.</p>
-
-    <p><strong>Where can I get support?</strong><br>
-    Contact us directly on Telegram or Discord.</p>
-  </section>
-
-  <section id="community" class="section">
-    <h2>📢 Join Our Community</h2>
-    <div class="buttons">
-      <a href="https://t.me/+tESrN9X3RyA2Y2Ux" target="_blank">Join Telegram</a>
-      <a href="https://discord.gg/FjFq4R3t" target="_blank">Join Discord</a>
-    </div>
-  </section>
-
+    document.getElementById('userForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target));
+      const res = await fetch('/submit-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      alert('✅ Info submitted! Trading setup underway.');
+    });
+  </script>
 </body>
 </html>
+
