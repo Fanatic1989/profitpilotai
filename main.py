@@ -4,15 +4,15 @@ import asyncio
 import functools
 import concurrent.futures
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
 # Telegram & Discord
 from telegram import Bot as TelegramBot
 from telegram.error import TelegramError
+
 import discord
 from discord.ext import commands
 
@@ -27,14 +27,11 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 TELEGRAM_GROUP_ID = os.environ.get("TELEGRAM_GROUP_ID")
 DISCORD_GUILD_ID = int(os.getenv("DISCORD_GUILD_ID", "0"))
 DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID", "0"))
-TELEGRAM_LINK = os.environ.get("TELEGRAM_LINK", "#")
-DISCORD_LINK = os.environ.get("DISCORD_LINK", "#")
+
+TELEGRAM_LINK = os.getenv("TELEGRAM_LINK", "#")
+DISCORD_LINK = os.getenv("DISCORD_LINK", "#")
 
 app = FastAPI()
-
-# ==== SETUP FRONTEND TEMPLATES & STATIC FILES ====
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
 
 # ==== MODELS ====
 class NowPaymentsWebhook(BaseModel):
@@ -46,7 +43,7 @@ class NowPaymentsWebhook(BaseModel):
     ipn_type: str
     payment_amount: float
     payment_currency: str
-    order_description: str
+    order_description: str  # Usually the user's email
 
 # ==== STATE ====
 active_users = {}
@@ -104,7 +101,7 @@ async def give_discord_access(user_email):
         channel = guild.get_channel(DISCORD_CHANNEL_ID)
         if channel:
             invite = await channel.create_invite(max_uses=1, unique=True)
-            print(f"Discord invite for {user_email}: {invite.url}")
+            print(f"🎟️ Discord invite for {user_email}: {invite.url}")
         else:
             print("⚠️ Discord channel not found")
     else:
@@ -112,12 +109,20 @@ async def give_discord_access(user_email):
 
 # ==== ROUTES ====
 @app.get("/", response_class=HTMLResponse)
-async def serve_index(request: Request):
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "telegram_link": TELEGRAM_LINK,
-        "discord_link": DISCORD_LINK
-    })
+async def root():
+    with open("index.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+        html_content = html_content.replace("{{ telegram_link }}", TELEGRAM_LINK)
+        html_content = html_content.replace("{{ discord_link }}", DISCORD_LINK)
+        return HTMLResponse(content=html_content, status_code=200)
+
+@app.get("/style.css")
+async def style():
+    return FileResponse("style.css")
+
+@app.get("/logo.png")
+async def logo():
+    return FileResponse("logo.png", media_type="image/png")
 
 @app.head("/")
 async def root_head():
