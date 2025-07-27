@@ -2,10 +2,10 @@ body {
   margin: 0;
   padding: 0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #000;
-  color: white;
-  overflow-x: hidden;
-  min-height: 100vh;
+  background-color: #000;
+  color: #fff;
+  height: 100vh;
+  overflow: hidden;
   position: relative;
 }
 
@@ -13,66 +13,80 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
+  width: 500px;
   transform: translate(-50%, -60%);
-  width: 400px;
-  opacity: 0.08;
+  opacity: 0.15; /* Brighter */
   z-index: 0;
 }
 
 .container {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   text-align: center;
-  padding: 100px 20px;
+  padding: 40px 20px;
 }
 
-.title {
-  font-size: 2.8em;
-  margin: 0.5em 0 0.2em;
+h1 {
+  font-size: 3rem;
+  margin-bottom: 10px;
 }
 
-.subtitle {
-  font-size: 1.2em;
-  color: #bbb;
-  margin-bottom: 2em;
+p {
+  font-size: 1.2rem;
+  margin-bottom: 30px;
 }
 
 .features {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 15px;
-  margin-bottom: 2em;
+  gap: 16px;
+  margin-bottom: 30px;
 }
 
 .feature {
   background: rgba(255, 255, 255, 0.05);
   padding: 15px 20px;
   border-radius: 10px;
-  min-width: 180px;
-  font-size: 0.95em;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.btn {
-  display: inline-block;
-  margin: 10px;
-  padding: 12px 25px;
-  font-size: 1em;
-  color: white;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(4px);
+  font-size: 1rem;
   transition: all 0.3s ease;
 }
 
-.btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+.feature:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.button {
+  background-color: #111;
+  color: #fff;
+  border: 1px solid #444;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin: 8px;
+  text-decoration: none;
+  display: inline-block;
+  transition: 0.3s ease;
+}
+
+.button:hover {
+  background-color: #222;
 }
 
 .primary {
-  background-color: #1e60ff;
+  background-color: #1a5cff;
   border: none;
   font-weight: bold;
+}
+
+.primary:hover {
+  background-color: #0040ff;
+}
+
+.links {
+  margin-top: 30px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
 }
