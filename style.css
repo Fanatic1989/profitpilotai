@@ -1,122 +1,76 @@
-/* Reset + Base Styles */
 body {
     margin: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: #fff;
-    background-color: #111;
+    font-family: Arial, sans-serif;
+    background: #0d0d0d;
+    color: #ffffff;
     position: relative;
     min-height: 100vh;
-    overflow-x: hidden;
 }
 
-/* Background Logo */
 .background-logo {
-    background: url('logo.png') no-repeat center center;
-    background-size: 75%;
-    opacity: 0.07;
     position: fixed;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: -1;
+    width: 100%;
+    height: 100%;
+    background: url('logo.png') center center no-repeat;
+    background-size: contain;
+    opacity: 0.08; /* brighten here */
+    z-index: 0;
 }
 
-/* Header */
-header {
+.container {
+    position: relative;
+    z-index: 1;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 40px 20px;
     text-align: center;
-    padding: 60px 20px 20px;
+    background: rgba(0, 0, 0, 0.75);
+    border-radius: 12px;
+    margin-top: 60px;
 }
 
-header h1 {
-    font-size: 3rem;
-    margin: 0;
+.title {
+    font-size: 3em;
+    margin-bottom: 10px;
+    color: #00ffcc;
 }
 
-header p {
-    font-size: 1.3rem;
+.tagline {
+    font-size: 1.2em;
+    margin-bottom: 30px;
     color: #ccc;
 }
 
-/* Nav */
-nav {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 20px;
-    background-color: #222;
-    padding: 15px;
+.button-group {
+    margin-bottom: 40px;
 }
 
-nav a {
-    color: #fff;
+.btn {
+    display: inline-block;
+    margin: 0 10px;
+    padding: 12px 20px;
+    background-color: #00ffcc;
+    color: #000;
     text-decoration: none;
-    font-weight: 600;
-    transition: color 0.3s ease;
+    font-weight: bold;
+    border-radius: 6px;
+    transition: background 0.3s ease;
 }
 
-nav a:hover {
-    color: #00ffcc;
+.btn:hover {
+    background-color: #00ccaa;
 }
 
-/* Main Content */
-main {
-    padding: 40px 20px;
-    max-width: 900px;
-    margin: 0 auto;
+.section {
+    margin-bottom: 40px;
 }
 
-section {
-    margin-bottom: 60px;
-}
-
-section h2 {
-    font-size: 2rem;
-    color: #00ffcc;
-    margin-bottom: 10px;
-}
-
-section p {
-    font-size: 1.1rem;
-    line-height: 1.6;
-    color: #ddd;
-}
-
-/* Payment Button */
-section#pricing img {
-    margin-top: 20px;
-    width: 250px;
-    max-width: 100%;
-}
-
-/* FAQ */
-#faq h3 {
-    margin-top: 25px;
-    color: #00ccff;
-}
-
-/* Footer */
-footer {
-    text-align: center;
-    padding: 30px 20px;
-    background-color: #111;
-    color: #666;
-    position: relative;
-    z-index: 1;
-}
-
-/* Responsive */
-@media (max-width: 600px) {
-    header h1 {
-        font-size: 2.2rem;
-    }
-
-    nav {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    main {
-        padding: 20px;
-    }
+.locked-section {
+    background-color: #1a1a1a;
+    padding: 20px;
+    border: 1px dashed #888;
+    border-radius: 6px;
+    margin-top: 30px;
 }
