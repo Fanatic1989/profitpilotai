@@ -1,80 +1,39 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ProfitPilot AI</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>ProfitPilot AI</title>
+    <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <div class="background"></div>
-  <div class="container">
-    <img src="logo.png" alt="ProfitPilotAI Logo" class="logo">
-    <h1>ProfitPilot AI</h1>
-    <p class="tagline">Automated Crypto Trading Intelligence</p>
-
-    <div class="pricing">
-      <h2>Access the Bot for $100 USDT</h2>
-      <a href="https://nowpayments.io/payment/?iid=4975255269&source=button" target="_blank">
-        <img src="https://nowpayments.io/images/embeds/payment-button-black.svg" alt="Pay with Crypto">
-      </a>
+    <div class="background-logo"></div>
+    <div class="container">
+        <h1>ProfitPilot AI</h1>
+        <p>Automated trading simplified. Set it. Forget it. Watch profits grow.</p>
+        <div class="button-group">
+            <a href="#get-started" class="btn">Get Started</a>
+            <a href="#pricing" class="btn">Pricing</a>
+            <a href="#faq" class="btn">FAQ</a>
+        </div>
+        <div class="section" id="get-started">
+            <h2>Get Started</h2>
+            <p>Register and activate ProfitPilot AI for just $100 in crypto.</p>
+        </div>
+        <div class="section" id="pricing">
+            <h2>Pricing</h2>
+            <p>One-time setup fee: <strong>$100 USDT</strong></p>
+        </div>
+        <div class="section" id="faq">
+            <h2>FAQ</h2>
+            <p><strong>Q:</strong> What do I need to get started?<br/>
+               <strong>A:</strong> Just your trading credentials and $100 setup payment.
+            </p>
+        </div>
+        <div class="links">
+            <a href="${{TELEGRAM_LINK}}" target="_blank" class="locked">Join Telegram</a>
+            <a href="${{DISCORD_LINK}}" target="_blank" class="locked">Join Discord</a>
+        </div>
     </div>
-
-    <div id="locked">
-      <p><strong>Note:</strong> Access to Telegram, Discord, and the Trading Bot is granted after payment.</p>
-    </div>
-
-    <div id="unlocked" style="display: none">
-      <h3>Enter Your Bot Info</h3>
-      <form id="userForm">
-        <input type="text" name="name" placeholder="Full Name" required>
-        <input type="email" name="email" placeholder="Email" required>
-        <input type="text" name="telegram" placeholder="Telegram Username" required>
-        <input type="text" name="discord" placeholder="Discord ID" required>
-        <input type="text" name="deriv_id" placeholder="Deriv Login ID" required>
-        <input type="password" name="api_token" placeholder="Deriv API Token" required>
-
-        <label>Trading Strategy:</label>
-        <select name="strategy">
-          <option value="scalping">Scalping</option>
-          <option value="day">Day Trading</option>
-          <option value="swing">Swing Trading</option>
-          <option value="binary">Binary Options</option>
-        </select>
-
-        <button type="submit">Submit</button>
-      </form>
-
-      <div class="links">
-        <a href="https://t.me/+tESrN9X3RyA2Y2Ux" target="_blank">Join Telegram</a>
-        <a href="https://discord.gg/FjFq4R3t" target="_blank">Join Discord</a>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    async function checkAccess() {
-      const res = await fetch('/unlock-status');
-      const { access } = await res.json();
-      if (access) {
-        document.getElementById('locked').style.display = 'none';
-        document.getElementById('unlocked').style.display = 'block';
-      }
-    }
-    checkAccess();
-
-    document.getElementById('userForm')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const data = Object.fromEntries(new FormData(e.target));
-      const res = await fetch('/submit-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      alert('✅ Info submitted! Trading setup underway.');
-    });
-  </script>
 </body>
 </html>
-
