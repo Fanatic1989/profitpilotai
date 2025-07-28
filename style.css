@@ -1,65 +1,122 @@
+/* Reset + Base Styles */
 body {
-    font-family: Arial, sans-serif;
     margin: 0;
-    padding: 0;
-    text-align: center;
-    background-color: #0e0e0e;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: #fff;
-}
-
-.container {
+    background-color: #111;
     position: relative;
-    z-index: 2;
-    padding: 60px 20px;
+    min-height: 100vh;
+    overflow-x: hidden;
 }
 
-h1 {
-    font-size: 3em;
+/* Background Logo */
+.background-logo {
+    background: url('logo.png') no-repeat center center;
+    background-size: 75%;
+    opacity: 0.07;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+}
+
+/* Header */
+header {
+    text-align: center;
+    padding: 60px 20px 20px;
+}
+
+header h1 {
+    font-size: 3rem;
+    margin: 0;
+}
+
+header p {
+    font-size: 1.3rem;
+    color: #ccc;
+}
+
+/* Nav */
+nav {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    background-color: #222;
+    padding: 15px;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+nav a:hover {
+    color: #00ffcc;
+}
+
+/* Main Content */
+main {
+    padding: 40px 20px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+section {
+    margin-bottom: 60px;
+}
+
+section h2 {
+    font-size: 2rem;
+    color: #00ffcc;
     margin-bottom: 10px;
 }
 
-p {
-    font-size: 1.2em;
-    margin: 10px 0 30px;
+section p {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #ddd;
 }
 
-.button-group .btn {
-    padding: 12px 25px;
-    margin: 5px;
-    background-color: #00c2ff;
-    color: #fff;
-    text-decoration: none;
-    border-radius: 8px;
-    display: inline-block;
-    font-weight: bold;
+/* Payment Button */
+section#pricing img {
+    margin-top: 20px;
+    width: 250px;
+    max-width: 100%;
 }
 
-.section {
-    margin-top: 40px;
+/* FAQ */
+#faq h3 {
+    margin-top: 25px;
+    color: #00ccff;
 }
 
-.links a {
-    display: inline-block;
-    margin: 10px;
-    color: gray;
-    text-decoration: none;
-}
-
-.locked {
-    pointer-events: none;
-    opacity: 0.5;
-}
-
-.background-logo {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-image: url('logo.png');
-    background-size: 80vmin;
-    background-repeat: no-repeat;
-    opacity: 0.1;
+/* Footer */
+footer {
+    text-align: center;
+    padding: 30px 20px;
+    background-color: #111;
+    color: #666;
+    position: relative;
     z-index: 1;
-    width: 100vw;
-    height: 100vh;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    header h1 {
+        font-size: 2.2rem;
+    }
+
+    nav {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    main {
+        padding: 20px;
+    }
 }
