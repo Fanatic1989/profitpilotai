@@ -1,35 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>ProfitPilot AI</title>
-    <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ProfitPilotAI</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <div class="container">
-        <img src="/static/logo.png" alt="Logo" class="logo-bg">
 
-        <h1>ProfitPilot AI</h1>
-        <p>Automated Trading Bot for Binary Options</p>
+  <!-- LOGO -->
+  <img src="logo.png" alt="Profit Pilot AI Logo" class="logo">
 
-        <div class="nav-links">
-            <a href="#">Get Started</a>
-            <a href="#">Pricing</a>
-            <a href="#">FAQ</a>
-        </div>
+  <!-- Navigation -->
+  <nav>
+    <a href="#pricing">Pricing</a>
+    <a href="#faq">FAQ</a>
+    <a href="#contact">Contact</a>
+  </nav>
 
-        <h2>Access</h2>
-        <p>One-time payment of <strong>$100</strong> to unlock the full ProfitPilot system.</p>
-        <a href="https://nowpayments.io/payment/?iid=4975255269&source=button" target="_blank" rel="noreferrer noopener">
-            <img src="https://nowpayments.io/images/embeds/payment-button-black.svg" alt="Pay with crypto">
-        </a>
+  <div class="container">
+    <h1>Welcome to ProfitPilotAI</h1>
+    <p>
+      ProfitPilotAI is your all-in-one fully automated trading assistant designed for binary, scalping, day, and swing trading.
+    </p>
 
-        <h2>FAQ</h2>
-        <p><strong>What happens after payment?</strong> You'll get access to our bot panel with Telegram & Discord links, and a place to add your Deriv login for auto-trading.</p>
-        <p><strong>What strategy does the bot use?</strong> You can toggle between Scalping, Day Trading, or Swing Trading after login.</p>
-        <p><strong>What markets are supported?</strong> All Binary Options except OTC.</p>
+    <section id="pricing">
+      <h2>Pricing</h2>
+      <p>One-time monthly access: <strong>$100 USDT</strong></p>
+      <a href="https://nowpayments.io/payment/?iid=4975255269&source=button" target="_blank" rel="noreferrer noopener" class="payment-button">
+        Pay with Crypto via NOWPayments
+      </a>
+    </section>
 
-        <p>🔒 Access <a href="{{ telegram_link }}">Telegram</a> & <a href="{{ discord_link }}">Discord</a> after payment</p>
-    </div>
+    <section id="faq">
+      <h2>FAQ</h2>
+      <h3>What happens after payment?</h3>
+      <p>You'll get instant access to the Telegram & Discord groups and unlock all trading features.</p>
+
+      <h3>What trading modes are supported?</h3>
+      <p>Scalping, day trading, swing trading, and binary options – all fully automated with toggle controls.</p>
+
+      <h3>Is there an admin panel?</h3>
+      <p>Yes. Admins can grant free access to friends/family and manage user logins.</p>
+    </section>
+
+    <section id="contact">
+      <h2>Join Us</h2>
+      <p>
+        Once subscribed, join our communities:
+      </p>
+      <a href="https://t.me/+tESrN9X3RyA2Y2Ux" target="_blank">Telegram Group</a> |
+      <a href="https://discord.gg/FjFq4R3t" target="_blank">Discord Server</a>
+    </section>
+  </div>
+
 </body>
 </html>
