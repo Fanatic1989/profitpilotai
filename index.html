@@ -2,41 +2,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ProfitPilot AI</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="background-logo"></div>
-
     <div class="container">
-        <h1 class="title">ProfitPilot AI</h1>
-        <p class="tagline">Automated Trading Bot for Binary Options</p>
+        <img src="/static/logo.png" alt="Logo" class="logo-bg">
 
-        <div class="button-group">
-            <a href="#pricing" class="btn">Get Started</a>
-            <a href="#pricing" class="btn">Pricing</a>
-            <a href="#faq" class="btn">FAQ</a>
+        <h1>ProfitPilot AI</h1>
+        <p>Automated Trading Bot for Binary Options</p>
+
+        <div class="nav-links">
+            <a href="#">Get Started</a>
+            <a href="#">Pricing</a>
+            <a href="#">FAQ</a>
         </div>
 
-        <div class="section" id="pricing">
-            <h2>Access</h2>
-            <p>One-time payment of <strong>$100</strong> to unlock the full ProfitPilot system.</p>
-            <a href="https://nowpayments.io/payment/?iid=4975255269&source=button" target="_blank" rel="noopener noreferrer">
-                <img src="https://nowpayments.io/images/embeds/payment-button-black.svg" alt="Pay with Crypto">
-            </a>
-        </div>
+        <h2>Access</h2>
+        <p>One-time payment of <strong>$100</strong> to unlock the full ProfitPilot system.</p>
+        <a href="https://nowpayments.io/payment/?iid=4975255269&source=button" target="_blank" rel="noreferrer noopener">
+            <img src="https://nowpayments.io/images/embeds/payment-button-black.svg" alt="Pay with crypto">
+        </a>
 
-        <div class="section" id="faq">
-            <h2>FAQ</h2>
-            <p><strong>What happens after payment?</strong> You'll get access to our bot panel with Telegram & Discord links, and a place to add your Deriv login for auto-trading.</p>
-            <p><strong>What strategy does the bot use?</strong> You can toggle between Scalping, Day Trading, or Swing Trading after login.</p>
-            <p><strong>What markets are supported?</strong> All Binary Options except OTC.</p>
-        </div>
+        <h2>FAQ</h2>
+        <p><strong>What happens after payment?</strong> You'll get access to our bot panel with Telegram & Discord links, and a place to add your Deriv login for auto-trading.</p>
+        <p><strong>What strategy does the bot use?</strong> You can toggle between Scalping, Day Trading, or Swing Trading after login.</p>
+        <p><strong>What markets are supported?</strong> All Binary Options except OTC.</p>
 
-        <div class="locked-section">
-            <p>🔒 Access Telegram & Discord after payment</p>
-        </div>
+        <p>🔒 Access <a href="{{ telegram_link }}">Telegram</a> & <a href="{{ discord_link }}">Discord</a> after payment</p>
     </div>
 </body>
 </html>
