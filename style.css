@@ -1,76 +1,77 @@
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background: #0d0d0d;
-    color: #ffffff;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f7f7f7;
+    color: #111;
     position: relative;
     min-height: 100vh;
-}
-
-.background-logo {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: url('logo.png') center center no-repeat;
-    background-size: contain;
-    opacity: 0.08; /* brighten here */
-    z-index: 0;
+    overflow-x: hidden;
 }
 
 .container {
-    position: relative;
-    z-index: 1;
-    max-width: 700px;
+    max-width: 800px;
     margin: 0 auto;
-    padding: 40px 20px;
+    padding: 2rem;
+    position: relative;
+    z-index: 2;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.logo-bg {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 80%;
+    max-width: 600px;
+    transform: translate(-50%, -50%);
+    opacity: 0.05;
+    z-index: 1;
+    pointer-events: none;
+}
+
+h1 {
     text-align: center;
-    background: rgba(0, 0, 0, 0.75);
-    border-radius: 12px;
-    margin-top: 60px;
+    font-size: 2.5rem;
+    margin-bottom: 0.25rem;
 }
 
-.title {
-    font-size: 3em;
-    margin-bottom: 10px;
-    color: #00ffcc;
+.nav-links {
+    text-align: center;
+    margin-bottom: 2rem;
 }
 
-.tagline {
-    font-size: 1.2em;
-    margin-bottom: 30px;
-    color: #ccc;
-}
-
-.button-group {
-    margin-bottom: 40px;
-}
-
-.btn {
-    display: inline-block;
-    margin: 0 10px;
-    padding: 12px 20px;
-    background-color: #00ffcc;
-    color: #000;
+.nav-links a {
+    margin: 0 15px;
     text-decoration: none;
     font-weight: bold;
-    border-radius: 6px;
-    transition: background 0.3s ease;
+    color: #1a73e8;
 }
 
-.btn:hover {
-    background-color: #00ccaa;
+a {
+    color: #1a73e8;
+    text-decoration: none;
 }
 
-.section {
-    margin-bottom: 40px;
+a:hover {
+    text-decoration: underline;
 }
 
-.locked-section {
-    background-color: #1a1a1a;
-    padding: 20px;
-    border: 1px dashed #888;
-    border-radius: 6px;
-    margin-top: 30px;
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1rem auto;
+}
+
+h2 {
+    margin-top: 2rem;
+    color: #222;
+}
+
+p {
+    margin-bottom: 1rem;
+    line-height: 1.6;
 }
