@@ -1,62 +1,68 @@
-import os
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from dotenv import load_dotenv
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.staticfiles import StaticFiles
+from dotenv import load_dotenv
+import os
 
+# Load environment variables
 load_dotenv()
 
+# Initialize FastAPI
 app = FastAPI()
 
-# Middleware for session handling
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "supersecret"))
+# Serve static files (style.css, logo.png, etc.)
+app.mount("/static", StaticFiles(directory="."), name="static")
 
-# Serve static files from current root directory
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
-
+# Jinja2 templates setup
 templates = Jinja2Templates(directory=".")
 
-# Environment variables
-TELEGRAM_LINK = os.getenv("TELEGRAM_LINK")
-DISCORD_LINK = os.getenv("DISCORD_LINK")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")  # default fallback
+# Add session middleware
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", "supersecret"))
 
+# Admin password
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "hardcoded123")
+
+# Handle HEAD request (for UptimeRobot)
+@app.head("/", response_class=PlainTextResponse)
+async def head_check():
+    return PlainTextResponse("OK", status_code=200)
+
+# Home page (User login view)
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "telegram_link": TELEGRAM_LINK,
-        "discord_link": DISCORD_LINK
-    })
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-# This makes HEAD / return 200 OK for UptimeRobot and health checks
-@app.head("/")
-async def head_root():
-    return Response(status_code=200)
+# Admin panel page
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_view(request: Request):
+    return templates.TemplateResponse("admin.html", {"request": request})
 
+# Handle form submission from /admin
 @app.post("/submit", response_class=HTMLResponse)
-async def submit(
+async def submit_admin_data(
     request: Request,
     bot_token: str = Form(...),
     login_id: str = Form(...),
     strategy: str = Form(...),
     password: str = Form(...)
 ):
-    # Simple admin-only access
     if password != ADMIN_PASSWORD:
-        return HTMLResponse("<h2>Access Denied ❌ - Invalid Password</h2>", status_code=401)
+        return HTMLResponse(content="<h3>Invalid Admin Password</h3>", status_code=401)
 
-    # Here, you'd securely store this info or use it to configure a bot
+    # Simulate storing the bot config
     print("Received bot config:")
-    print(f"Token: {bot_token}")
+    print(f"Bot Token: {bot_token}")
     print(f"Login ID: {login_id}")
     print(f"Strategy: {strategy}")
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "telegram_link": TELEGRAM_LINK,
-        "discord_link": DISCORD_LINK,
-        "message": "✅ Bot configuration submitted successfully."
-    })
+    return HTMLResponse(content="<h3>Bot setup received!</h3>", status_code=200)
+
+# Handle user login (can be expanded later)
+@app.post("/login", response_class=HTMLResponse)
+async def user_login(request: Request, login_id: str = Form(...), password: str = Form(...)):
+    # Placeholder login logic
+    if login_id and password:
+        return HTMLResponse(content=f"<h3>Welcome {login_id}! Your bot will activate shortly.</h3>", status_code=200)
+    return HTMLResponse(content="<h3>Missing credentials.</h3>", status_code=400)
