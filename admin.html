@@ -1,20 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Admin Login</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
   <div class="container">
-    <h2>Admin Panel Login</h2>
     <form method="post" action="/admin">
-      <label for="login_id">Login ID:</label>
-      <input type="text" id="login_id" name="login_id" required>
-
-      <label for="password">Password:</label>
-      <input type="password" id="password" name="password" required>
-
+      <h1>Login</h1>
+      <input type="text" name="login_id" placeholder="Login ID" required />
+      <input type="password" name="password" placeholder="Admin Password" required />
       <button type="submit">Submit</button>
     </form>
   </div>
