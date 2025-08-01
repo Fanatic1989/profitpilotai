@@ -3,56 +3,51 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ProfitPilotAI</title>
+  <title>ProfitPilot AI</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-  <!-- LOGO -->
-  <img src="logo.png" alt="Profit Pilot AI Logo" class="logo">
-
-  <!-- Navigation -->
-  <nav>
-    <a href="#pricing">Pricing</a>
-    <a href="#faq">FAQ</a>
-    <a href="#contact">Contact</a>
-  </nav>
-
+  <div class="overlay"></div>
   <div class="container">
-    <h1>Welcome to ProfitPilotAI</h1>
-    <p>
-      ProfitPilotAI is your all-in-one fully automated trading assistant designed for binary, scalping, day, and swing trading.
-    </p>
+    <img src="logo.png" alt="Logo" class="logo" />
 
-    <section id="pricing">
-      <h2>Pricing</h2>
-      <p>One-time monthly access: <strong>$100 USDT</strong></p>
-      <a href="https://nowpayments.io/payment/?iid=4975255269&source=button" target="_blank" rel="noreferrer noopener" class="payment-button">
-        Pay with Crypto via NOWPayments
+    <h1>ProfitPilot AI</h1>
+    <p class="tagline">Automated Trading Powered by AI</p>
+
+    <div class="payment-section">
+      <h2>Subscription: $100/month</h2>
+      <a href="https://nowpayments.io/payment/?iid=4975255269&source=button" target="_blank" rel="noreferrer noopener">
+        <img src="https://nowpayments.io/images/embeds/payment-button-black.svg" alt="Crypto payment button by NOWPayments" />
       </a>
-    </section>
+    </div>
 
-    <section id="faq">
-      <h2>FAQ</h2>
-      <h3>What happens after payment?</h3>
-      <p>You'll get instant access to the Telegram & Discord groups and unlock all trading features.</p>
+    <div class="links-locked">
+      <p>Access granted after payment:</p>
+      <ul>
+        <li><a href="{{ telegram_link }}" target="_blank">📲 Telegram Group</a></li>
+        <li><a href="{{ discord_link }}" target="_blank">💬 Discord Server</a></li>
+      </ul>
+    </div>
 
-      <h3>What trading modes are supported?</h3>
-      <p>Scalping, day trading, swing trading, and binary options – all fully automated with toggle controls.</p>
+    <div class="admin-section">
+      <h3>Admin Panel (Private Use)</h3>
+      <form action="/submit" method="post">
+        <input type="text" name="bot_token" placeholder="Bot Token" required />
+        <input type="text" name="login_id" placeholder="Login ID" required />
+        <select name="strategy">
+          <option value="scalping">Scalping</option>
+          <option value="daytrading">Day Trading</option>
+          <option value="swingtrading">Swing Trading</option>
+          <option value="binary">Binary Option</option>
+        </select>
+        <input type="password" name="password" placeholder="Admin Password" required />
+        <button type="submit">Submit</button>
+      </form>
+    </div>
 
-      <h3>Is there an admin panel?</h3>
-      <p>Yes. Admins can grant free access to friends/family and manage user logins.</p>
-    </section>
-
-    <section id="contact">
-      <h2>Join Us</h2>
-      <p>
-        Once subscribed, join our communities:
-      </p>
-      <a href="https://t.me/+tESrN9X3RyA2Y2Ux" target="_blank">Telegram Group</a> |
-      <a href="https://discord.gg/FjFq4R3t" target="_blank">Discord Server</a>
-    </section>
+    {% if message %}
+      <div class="message">{{ message }}</div>
+    {% endif %}
   </div>
-
 </body>
 </html>
