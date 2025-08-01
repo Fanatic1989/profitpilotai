@@ -22,6 +22,7 @@ templates = Jinja2Templates(directory=".")
 # Environment variables
 TELEGRAM_LINK = os.getenv("TELEGRAM_LINK")
 DISCORD_LINK = os.getenv("DISCORD_LINK")
+ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "admin")           # <-- NEW
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")  # fallback default
 
 @app.get("/", response_class=HTMLResponse)
@@ -68,6 +69,6 @@ async def admin_login(request: Request):
 
 @app.post("/admin", response_class=HTMLResponse)
 async def admin_auth(request: Request, login_id: str = Form(...), password: str = Form(...)):
-    if login_id == "admin" and password == ADMIN_PASSWORD:
+    if login_id == ADMIN_LOGIN and password == ADMIN_PASSWORD:
         return templates.TemplateResponse("admin.html", {"request": request})
     return RedirectResponse("/admin", status_code=303)
