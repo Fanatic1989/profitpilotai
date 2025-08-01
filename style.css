@@ -1,67 +1,77 @@
 body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #0f0f0f; /* DARK BACKGROUND */
-    color: #ffffff; /* WHITE TEXT */
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: #000;
+  color: #fff;
+  text-align: center;
 }
 
-.logo {
-    display: block;
-    margin: 40px auto 20px auto;
-    width: 180px;
-    height: auto;
+.overlay {
+  background: url('logo.png') no-repeat center center;
+  background-size: 80%;
+  opacity: 0.05;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
 }
 
 .container {
-    max-width: 900px;
-    margin: auto;
-    padding: 30px;
-    background: #1e1e1e; /* Dark card background */
-    border-radius: 10px;
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+  position: relative;
+  z-index: 1;
+  padding: 2em;
+  max-width: 800px;
+  margin: auto;
 }
 
-h1, h2, h3 {
-    text-align: center;
-    color: #fff;
+.logo {
+  width: 150px;
+  margin-bottom: 1em;
+  filter: brightness(1.5);
 }
 
-nav {
-    display: flex;
-    justify-content: center;
-    gap: 30px;
-    margin: 20px 0;
+.payment-section img {
+  margin: 1em 0;
+  width: 220px;
 }
 
-nav a {
-    color: #00aaff;
-    text-decoration: none;
-    font-weight: bold;
-    font-size: 16px;
+.links-locked ul {
+  list-style: none;
+  padding: 0;
 }
 
-nav a:hover {
-    text-decoration: underline;
+.links-locked li a {
+  color: #00f2ff;
+  text-decoration: none;
 }
 
-section {
-    margin-top: 40px;
+.admin-section input,
+.admin-section select {
+  display: block;
+  width: 90%;
+  max-width: 300px;
+  margin: 0.5em auto;
+  padding: 0.5em;
+  font-size: 1em;
+  border: none;
+  border-radius: 4px;
 }
 
-button, .payment-button {
-    display: inline-block;
-    padding: 12px 24px;
-    font-size: 16px;
-    background-color: #00aaff;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    text-decoration: none;
-    margin-top: 20px;
+.admin-section button {
+  background: #00ff99;
+  color: #000;
+  padding: 0.6em 2em;
+  border: none;
+  border-radius: 5px;
+  font-size: 1em;
+  cursor: pointer;
 }
 
-button:hover, .payment-button:hover {
-    background-color: #0077cc;
+.message {
+  margin-top: 1em;
+  color: #00ff00;
+  font-weight: bold;
 }
