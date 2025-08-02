@@ -7,9 +7,9 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  {% set request = request %}
   <div class="container">
     <img src="/static/logo.png" alt="Logo" class="logo" />
+
     <form method="post" action="/submit">
       <input type="text" name="bot_token" placeholder="Bot Token" required />
       <input type="text" name="login_id" placeholder="Login ID" required />
@@ -18,7 +18,18 @@
         <option value="Day Trading">Day Trading</option>
         <option value="Swing Trading">Swing Trading</option>
       </select>
-      <input type="password" name="password" placeholder="Password" required />
+
+      <input type="password" name="password" id="user_password" placeholder="Admin Password" required />
+
+      <div class="toggle">
+        <label><input type="checkbox" onclick="toggleUserPassword()"> Show Password</label>
+        <label><input type="checkbox" name="remember_me"> Remember Me</label>
+      </div>
+
+      <div class="forgot">
+        <a onclick="alert('🔐 Please contact support to reset your password.\nEmail: support@profitpilot.ai')">Forgot Password?</a>
+      </div>
+
       <button type="submit">Submit</button>
     </form>
 
@@ -26,5 +37,12 @@
       <p class="success">{{ message }}</p>
     {% endif %}
   </div>
+
+  <script>
+    function toggleUserPassword() {
+      const pwd = document.getElementById("user_password");
+      pwd.type = pwd.type === "password" ? "text" : "password";
+    }
+  </script>
 </body>
 </html>
