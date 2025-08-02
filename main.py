@@ -1,5 +1,6 @@
+import os  # Import the os module to access environment variables
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response  # Add Response here
+from fastapi.responses import HTMLResponse, RedirectResponse, Response  # Import Response for HEAD requests
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 from starlette.middleware.sessions import SessionMiddleware
@@ -35,7 +36,7 @@ async def read_root(request: Request):
 # UptimeRobot HEAD request support
 @app.head("/")
 async def head_root():
-    return Response(status_code=200)  # Now Response is properly imported
+    return Response(status_code=200)  # Respond to HEAD requests with a 200 OK status
 
 @app.post("/submit", response_class=HTMLResponse)
 async def submit(
