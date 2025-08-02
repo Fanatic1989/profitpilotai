@@ -44,7 +44,8 @@ async def submit(
     bot_token: str = Form(...),
     login_id: str = Form(...),
     strategy: str = Form(...),
-    password: str = Form(...)
+    password: str = Form(...),
+    remember_me: str = Form(None)  # Optional "Remember Me" checkbox
 ):
     if password != ADMIN_PASSWORD:
         return HTMLResponse("<h2>Access Denied ❌ - Invalid Password</h2>", status_code=401)
@@ -53,6 +54,12 @@ async def submit(
     print(f"Token: {bot_token}")
     print(f"Login ID: {login_id}")
     print(f"Strategy: {strategy}")
+
+    # Set session variables
+    request.session["user_logged_in"] = True
+    request.session["login_id"] = login_id
+    if remember_me == "on":
+        pass  # Optional: Add persistent session logic here
 
     return templates.TemplateResponse("index.html", {
         "request": request,
@@ -68,14 +75,28 @@ async def admin_login(request: Request):
     return templates.TemplateResponse("admin.html", {"request": request})
 
 @app.post("/admin", response_class=HTMLResponse)
-async def admin_auth(request: Request, login_id: str = Form(...), password: str = Form(...)):
+async def admin_auth(
+    request: Request,
+    login_id: str = Form(...),
+    password: str = Form(...),
+    remember_me: str = Form(None)  # Optional "Remember Me" checkbox
+):
     print(f"Received login credentials: login_id={login_id}, password={password}")
     print(f"Expected credentials: ADMIN_LOGIN={ADMIN_LOGIN}, ADMIN_PASSWORD={ADMIN_PASSWORD}")
     if login_id == ADMIN_LOGIN and password == ADMIN_PASSWORD:
         print("Login successful")
+        # Set session variables
+        request.session["admin_logged_in"] = True
+        if remember_me == "on":
+            pass  # Optional: Add persistent session logic here
         return templates.TemplateResponse("dashboard.html", {"request": request})
     print("Login failed")
     return templates.TemplateResponse("admin.html", {
         "request": request,
         "error": "Invalid login credentials. Please try again."
     })
+
+@app.get("/logout")
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/", status_code=303)
