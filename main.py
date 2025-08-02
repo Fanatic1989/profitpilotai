@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 from starlette.middleware.sessions import SessionMiddleware
@@ -22,8 +22,8 @@ templates = Jinja2Templates(directory=".")
 # Environment variables
 TELEGRAM_LINK = os.getenv("TELEGRAM_LINK")
 DISCORD_LINK = os.getenv("DISCORD_LINK")
-ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "admin")           # <-- NEW
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")  # fallback default
+ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "admin")           # Default fallback
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")  # Default fallback
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -69,6 +69,13 @@ async def admin_login(request: Request):
 
 @app.post("/admin", response_class=HTMLResponse)
 async def admin_auth(request: Request, login_id: str = Form(...), password: str = Form(...)):
+    print(f"Received login credentials: login_id={login_id}, password={password}")
+    print(f"Expected credentials: ADMIN_LOGIN={ADMIN_LOGIN}, ADMIN_PASSWORD={ADMIN_PASSWORD}")
     if login_id == ADMIN_LOGIN and password == ADMIN_PASSWORD:
+        print("Login successful")
         return templates.TemplateResponse("admin.html", {"request": request})
-    return RedirectResponse("/admin", status_code=303)
+    print("Login failed")
+    return templates.TemplateResponse("admin_login.html", {
+        "request": request,
+        "error": "Invalid login credentials. Please try again."
+    })
