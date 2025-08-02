@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response  # Ensure Response is imported
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 from starlette.middleware.sessions import SessionMiddleware
@@ -34,7 +34,7 @@ async def read_root(request: Request):
 
 @app.head("/")
 async def head_root():
-    return Response(status_code=200)
+    return Response(status_code=200)  # Now Response is properly imported
 
 @app.post("/submit", response_class=HTMLResponse)
 async def submit(
