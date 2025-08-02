@@ -69,12 +69,8 @@ async def submit(
         ]
     })
 
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "telegram_link": TELEGRAM_LINK,
-        "discord_link": DISCORD_LINK,
-        "message": "✅ Bot configuration submitted successfully."
-    })
+    # ✅ Redirect to user dashboard after submission
+    return RedirectResponse("/dashboard", status_code=303)
 
 # === Admin Login Page ===
 @app.get("/admin", response_class=HTMLResponse)
