@@ -5,3 +5,6 @@ starlette
 python-dotenv
 python-multipart
 itsdangerous
+aiofiles
+sqlalchemy
+aiosqlite
