@@ -14,6 +14,8 @@
       <input type="password" name="password" placeholder="Admin Password" required />
       <button type="submit">Submit</button>
     </form>
+
+    <!-- Display error message if login fails -->
     {% if error %}
       <p style="color: red;">{{ error }}</p>
     {% endif %}
