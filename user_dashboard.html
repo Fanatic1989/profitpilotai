@@ -1,38 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>User Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8">
+  <title>User Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    body {
+      background-image: url("/static/background.jpg");
+      background-size: cover;
+      background-position: center;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .dashboard-container {
+      max-width: 600px;
+      margin: 80px auto;
+      padding: 30px;
+      background: rgba(0, 0, 0, 0.75); /* semi-transparent dark card */
+      color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 0 25px rgba(0, 0, 0, 0.7);
+    }
+
+    .dashboard-container h1 {
+      text-align: center;
+      margin-bottom: 25px;
+      color: #00ffff;
+    }
+
+    .info-section p {
+      margin: 10px 0;
+      font-size: 16px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 8px;
+    }
+
+    .trade-log-section ul {
+      list-style-type: disc;
+      margin-left: 20px;
+    }
+
+    .trade-log-section h2 {
+      margin-top: 30px;
+      color: #ffcc00;
+    }
+
+    .logout-button {
+      text-align: center;
+      margin-top: 30px;
+    }
+
+    .logout-button a {
+      background-color: #ff4444;
+      color: white;
+      text-decoration: none;
+      padding: 10px 25px;
+      border-radius: 6px;
+      transition: 0.3s;
+    }
+
+    .logout-button a:hover {
+      background-color: #cc0000;
+    }
+  </style>
 </head>
 <body>
-    <div class="dashboard-container">
-        <h1>📊 User Dashboard</h1>
+  <div class="dashboard-container">
+    <h1>📊 User Dashboard</h1>
 
-        <div class="info-section">
-            <p><strong>Bot Token:</strong> {{ user.bot_token }}</p>
-            <p><strong>Login ID:</strong> {{ user.login_id }}</p>
-            <p><strong>Strategy:</strong> {{ user.strategy }}</p>
-        </div>
-
-        <hr>
-
-        <div class="trade-log-section">
-            <h2>📝 Trade Logs</h2>
-            {% if logs %}
-                <ul>
-                    {% for log in logs %}
-                        <li>{{ log }}</li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No trade logs available yet.</p>
-            {% endif %}
-        </div>
-
-        <div class="logout-button">
-            <a href="/logout">🔒 Logout</a>
-        </div>
+    <div class="info-section">
+      <p><strong>Bot Token:</strong> {{ user.bot_token }}</p>
+      <p><strong>Login ID:</strong> {{ user.login_id }}</p>
+      <p><strong>Strategy:</strong> {{ user.strategy }}</p>
     </div>
+
+    <div class="trade-log-section">
+      <h2>📝 Trade Logs</h2>
+      {% if logs %}
+        <ul>
+          {% for log in logs %}
+            <li>{{ log }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No trade logs yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="logout-button">
+      <a href="/logout">🔒 Logout</a>
+    </div>
+  </div>
 </body>
 </html>
