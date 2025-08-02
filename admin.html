@@ -14,6 +14,9 @@
       <input type="password" name="password" placeholder="Admin Password" required />
       <button type="submit">Submit</button>
     </form>
+    {% if error %}
+      <p style="color: red;">{{ error }}</p>
+    {% endif %}
   </div>
 </body>
 </html>
