@@ -9,4 +9,3 @@ aiofiles
 sqlalchemy
 aiosqlite
 supabase
-supabase-py
