@@ -4,17 +4,25 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
+from supabase import create_client, Client  # ✅ Supabase
 
 # Load environment variables
 load_dotenv()
 
-# Initialize FastAPI app
+# === Supabase Config ===
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+# ✅ Initialize Supabase client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# === FastAPI Initialization ===
 app = FastAPI()
 
 # Middleware for session handling
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "supersecret"))
 
-# Serve static files (e.g., CSS, images) from the /static directory
+# Serve static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Environment variables
@@ -23,26 +31,24 @@ DISCORD_LINK = os.getenv("DISCORD_LINK")
 ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
-# === On Startup Create Tables ===
+# === On Startup ===
 @app.on_event("startup")
 async def startup():
-    # Initialize database or other startup tasks
-    pass
+    pass  # You can later add DB table checks or scheduled tasks
 
 # === Home Page ===
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     try:
-        with open("index.html", "r") as file:  # Read index.html directly from root
+        with open("index.html", "r") as file:
             content = file.read()
         return HTMLResponse(content=content.replace("{{ telegram_link }}", TELEGRAM_LINK).replace("{{ discord_link }}", DISCORD_LINK))
     except FileNotFoundError:
         return HTMLResponse("<h1>Error: index.html not found</h1>", status_code=404)
 
-# UptimeRobot HEAD request support
 @app.head("/")
 async def head_root():
-    return Response(status_code=200)  # Respond to HEAD requests with a 200 OK status
+    return Response(status_code=200)
 
 # === Submit Bot Config ===
 @app.post("/submit", response_class=HTMLResponse)
@@ -59,16 +65,25 @@ async def submit(
     print(f"Received bot config - Token: {bot_token}, Login ID: {login_id}, Strategy: {strategy}")
 
     try:
+        # ✅ Save to session
         request.session["user"] = {
             "login_id": login_id,
             "bot_token": bot_token,
             "strategy": strategy
         }
+
+        # ✅ Save to Supabase
+        supabase.table("user_settings").upsert({
+            "login_id": login_id,
+            "bot_token": bot_token,
+            "strategy": strategy
+        }).execute()
+
         return RedirectResponse("/dashboard", status_code=303)
     except Exception as e:
         return HTMLResponse(f"<h2>Error: {str(e)}</h2>", status_code=500)
 
-# === Admin ===
+# === Admin Login ===
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_login(request: Request):
     try:
@@ -118,12 +133,11 @@ async def dashboard(request: Request):
         with open("user_dashboard.html", "r") as file:
             content = file.read()
 
-        # Replace placeholders with real session data
         content = content.replace("{{ user.login_id }}", user_data["login_id"])
         content = content.replace("{{ user.bot_token }}", user_data["bot_token"])
         content = content.replace("{{ user.strategy }}", user_data["strategy"])
 
-        # Optional: clean template logic blocks
+        # Clean Jinja logic if present
         content = content.replace("{% if logs %}", "").replace("{% endif %}", "")
         content = content.replace("{% for log in logs %}", "").replace("{% endfor %}", "")
         content = content.replace("{% else %}No trade logs yet.", "")
@@ -132,6 +146,7 @@ async def dashboard(request: Request):
     except FileNotFoundError:
         return HTMLResponse("<h1>Error: user_dashboard.html not found</h1>", status_code=404)
 
+# === Logout ===
 @app.get("/logout")
 async def logout(request: Request):
     request.session.clear()
