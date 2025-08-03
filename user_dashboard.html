@@ -80,15 +80,9 @@
     <!-- Trade Logs Section -->
     <div class="trade-log-section">
       <h2>📝 Trade Logs</h2>
-      {% if logs %}
-        <ul>
-          {% for log in logs %}
-            <li>{{ log }}</li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p>No trade logs yet.</p>
-      {% endif %}
+      <ul>
+        {{ logs }}
+      </ul>
     </div>
 
     <!-- Logout Button -->
