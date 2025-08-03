@@ -1,106 +1,29 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Profit Pilot AI</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-  <div class="container">
-    <!-- Logo Section -->
-    <div class="logo-section">
-      <img src="/static/logo.png" alt="Profit Pilot FX Logo" class="logo">
-    </div>
+<!-- Form Section -->
+<form method="post" action="/submit" class="form-section">
 
-    <!-- Features Section -->
-    <div class="features-section">
-      <div class="feature-card">
-        <img src="/static/self-learning-ai-icon.png" alt="Self-Learning AI">
-        <h3>Self-Learning AI</h3>
-      </div>
-      <div class="feature-card">
-        <h3>MT5 Integration</h3>
-        <p>MTS</p>
-      </div>
-      <div class="feature-card">
-        <img src="/static/risk-reward-icon.png" alt="Risk Reward Ratio">
-        <h3>3:1 Risk | Reward Ratio</h3>
-      </div>
-      <div class="feature-card">
-        <img src="/static/fibonacci-patterns-icon.png" alt="Fibonacci Patterns">
-        <h3>Fibonacci + Patterns</h3>
-      </div>
-      <div class="feature-card">
-        <img src="/static/news-filter-icon.png" alt="News Filter">
-        <h3>News Filter</h3>
-      </div>
-    </div>
+  <!-- Success Message moved here -->
+  {% if message %}
+    <p class="success">{{ message }}</p>
+  {% endif %}
 
-    <!-- Form Section -->
-    <form method="post" action="/submit" class="form-section">
-      <input type="text" name="bot_token" placeholder="Bot Token" required />
-      <input type="text" name="login_id" placeholder="Login ID" required />
-      <select name="strategy">
-        <option value="Scalping">Scalping</option>
-        <option value="Day Trading">Day Trading</option>
-        <option value="Swing Trading">Swing Trading</option>
-      </select>
+  <input type="text" name="bot_token" placeholder="Bot Token" required />
+  <input type="text" name="login_id" placeholder="Login ID" required />
+  <select name="strategy">
+    <option value="Scalping">Scalping</option>
+    <option value="Day Trading">Day Trading</option>
+    <option value="Swing Trading">Swing Trading</option>
+  </select>
 
-      <input type="password" name="password" id="user_password" placeholder="Admin Password" required />
+  <input type="password" name="password" id="user_password" placeholder="Admin Password" required />
 
-      <div class="toggle">
-        <label><input type="checkbox" onclick="toggleUserPassword()"> Show Password</label>
-        <label><input type="checkbox" name="remember_me"> Remember Me</label>
-      </div>
-
-      <div class="forgot">
-        <a onclick="alert('🔐 Please contact support to reset your password.\nEmail: support@profitpilot.ai')">Forgot Password?</a>
-      </div>
-
-      <button type="submit">Submit</button>
-    </form>
-
-    <!-- Success Message -->
-    {% if message %}
-      <p class="success">{{ message }}</p>
-    {% endif %}
-
-    <!-- Get Started Button -->
-    <div class="get-started-section">
-      <button class="get-started-btn">Get Started</button>
-    </div>
-
-    <!-- Social Links -->
-    <div class="social-links-section">
-      <a href="#" class="social-link telegram">
-        <img src="/static/telegram-icon.png" alt="Telegram">
-        Join Us on Telegram
-      </a>
-      <a href="#" class="social-link discord">
-        <img src="/static/discord-icon.png" alt="Discord">
-        Join Us on Discord
-      </a>
-    </div>
-
-    <!-- Footer Links -->
-    <div class="footer-links-section">
-      <a href="#" class="footer-link">
-        <img src="/static/pricing-icon.png" alt="Pricing">
-        Pricing
-      </a>
-      <a href="#" class="footer-link">
-        <img src="/static/faq-icon.png" alt="FAQ">
-        FAQ
-      </a>
-    </div>
+  <div class="toggle">
+    <label><input type="checkbox" onclick="toggleUserPassword()"> Show Password</label>
+    <label><input type="checkbox" name="remember_me"> Remember Me</label>
   </div>
 
-  <script>
-    function toggleUserPassword() {
-      const pwd = document.getElementById("user_password");
-      pwd.type = pwd.type === "password" ? "text" : "password";
-    }
-  </script>
-</body>
-</html>
+  <div class="forgot">
+    <a onclick="alert('🔐 Please contact support to reset your password.\nEmail: support@profitpilot.ai')">Forgot Password?</a>
+  </div>
+
+  <button type="submit">Submit</button>
+</form>
