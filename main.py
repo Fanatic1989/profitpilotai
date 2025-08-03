@@ -74,7 +74,7 @@ async def submit(
             "risk_percent": risk_percent
         }
 
-        # Save to Supabase (upsert ensures uniqueness by login_id)
+        # ✅ Save to Supabase (upsert ensures uniqueness by login_id)
         response = supabase.table("user_settings").upsert({
             "login_id": login_id,
             "bot_token": bot_token,
@@ -83,8 +83,9 @@ async def submit(
             "risk_percent": risk_percent
         }).execute()
 
-        if response.get("error"):
-            return HTMLResponse(f"<h2>DB Error: {response['error']['message']}</h2>", status_code=500)
+        # ✅ Fix for 'APIResponse' crash
+        if response.error:
+            return HTMLResponse(f"<h2>DB Error: {response.error.message}</h2>", status_code=500)
 
         return RedirectResponse("/dashboard", status_code=303)
 
@@ -146,6 +147,7 @@ async def dashboard(request: Request):
     except FileNotFoundError:
         return HTMLResponse("<h1>Error: user_dashboard.html not found</h1>", status_code=404)
 
+# === Logout ===
 @app.get("/logout")
 async def logout(request: Request):
     request.session.clear()
