@@ -30,13 +30,6 @@
       color: #00ffff;
     }
 
-    .info-section p {
-      margin: 10px 0;
-      font-size: 16px;
-      border-bottom: 1px solid #333;
-      padding-bottom: 8px;
-    }
-
     .trade-log-section ul {
       list-style-type: disc;
       margin-left: 20px;
@@ -69,13 +62,6 @@
 <body>
   <div class="dashboard-container">
     <h1>📊 User Dashboard</h1>
-
-    <!-- User Information Section -->
-    <div class="info-section">
-      <p><strong>Login ID:</strong> {{ user.login_id }}</p>
-      <p><strong>Bot Token:</strong> {{ user.bot_token }}</p>
-      <p><strong>Strategy:</strong> {{ user.strategy }}</p>
-    </div>
 
     <!-- Trade Logs Section -->
     <div class="trade-log-section">
