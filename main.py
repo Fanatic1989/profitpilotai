@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Request, Form, Depends
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, Response  # Import Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -60,11 +60,18 @@ async def submit(
 
     # Process the form data (e.g., save to database)
     try:
-        with open("index.html", "r") as file:
-            content = file.read()
-        return HTMLResponse(content=content.replace("{{ message }}", "✅ Bot configuration submitted successfully."))
-    except FileNotFoundError:
-        return HTMLResponse("<h1>Error: index.html not found</h1>", status_code=404)
+        # Save user data or perform other actions
+        # Example: Store user data in session
+        request.session["user"] = {
+            "login_id": login_id,
+            "bot_token": bot_token,
+            "strategy": strategy
+        }
+
+        # Redirect to the user dashboard
+        return RedirectResponse("/dashboard", status_code=303)
+    except Exception as e:
+        return HTMLResponse(f"<h2>Error: {str(e)}</h2>", status_code=500)
 
 # === Admin ===
 @app.get("/admin", response_class=HTMLResponse)
