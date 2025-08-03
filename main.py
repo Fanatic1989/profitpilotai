@@ -1,6 +1,6 @@
 import os
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi import FastAPI, Request, Form, Depends
+from fastapi.responses import HTMLResponse, RedirectResponse, Response  # Import Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Initialize FastAPI app
 app = FastAPI()
 
 # Middleware for session handling
@@ -32,7 +33,7 @@ async def startup():
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     try:
-        with open("index.html", "r") as file:
+        with open("index.html", "r") as file:  # Read index.html directly from root
             content = file.read()
         return HTMLResponse(content=content.replace("{{ telegram_link }}", TELEGRAM_LINK).replace("{{ discord_link }}", DISCORD_LINK))
     except FileNotFoundError:
@@ -55,15 +56,9 @@ async def submit(
     if password != ADMIN_PASSWORD:
         return HTMLResponse("<h2>Access Denied ❌ - Invalid Password</h2>", status_code=401)
 
-    print("Received bot config:")
-    print(f"Token: {bot_token}")
-    print(f"Login ID: {login_id}")
-    print(f"Strategy: {strategy}")
+    print(f"Received bot config - Token: {bot_token}, Login ID: {login_id}, Strategy: {strategy}")
 
-    # Set session variables
-    request.session["user_logged_in"] = True
-    request.session["login_id"] = login_id
-
+    # Process the form data (e.g., save to database)
     try:
         with open("index.html", "r") as file:
             content = file.read()
@@ -75,7 +70,7 @@ async def submit(
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_login(request: Request):
     try:
-        with open("admin_login.html", "r") as file:
+        with open("admin_login.html", "r") as file:  # Read admin_login.html directly from root
             content = file.read()
         return HTMLResponse(content=content)
     except FileNotFoundError:
@@ -104,7 +99,7 @@ async def admin_dashboard(request: Request):
         return RedirectResponse("/admin", status_code=303)
 
     try:
-        with open("admin.html", "r") as file:
+        with open("admin.html", "r") as file:  # Read admin.html directly from root
             content = file.read()
         return HTMLResponse(content=content)
     except FileNotFoundError:
@@ -118,7 +113,7 @@ async def dashboard(request: Request):
         return RedirectResponse("/", status_code=303)
 
     try:
-        with open("user_dashboard.html", "r") as file:
+        with open("user_dashboard.html", "r") as file:  # Read user_dashboard.html directly from root
             content = file.read()
         return HTMLResponse(content=content)
     except FileNotFoundError:
