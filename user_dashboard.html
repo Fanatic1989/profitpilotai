@@ -18,7 +18,7 @@
       max-width: 600px;
       margin: 80px auto;
       padding: 30px;
-      background: rgba(0, 0, 0, 0.75); /* semi-transparent dark card */
+      background: rgba(0, 0, 0, 0.75);
       color: #ffffff;
       border-radius: 12px;
       box-shadow: 0 0 25px rgba(0, 0, 0, 0.7);
@@ -28,6 +28,47 @@
       text-align: center;
       margin-bottom: 25px;
       color: #00ffff;
+    }
+
+    .info-section p {
+      margin: 8px 0;
+      font-size: 16px;
+    }
+
+    .settings-form {
+      margin-top: 20px;
+    }
+
+    .settings-form label {
+      display: block;
+      margin: 12px 0 6px;
+      color: #ffcc00;
+    }
+
+    .settings-form select {
+      width: 100%;
+      padding: 6px;
+      border-radius: 4px;
+      border: none;
+      background-color: #222;
+      color: #fff;
+    }
+
+    .settings-form button {
+      margin-top: 20px;
+      width: 100%;
+      background-color: #00cc66;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .settings-form button:hover {
+      background-color: #00994d;
     }
 
     .trade-log-section ul {
@@ -62,6 +103,40 @@
 <body>
   <div class="dashboard-container">
     <h1>📊 User Dashboard</h1>
+
+    <!-- User Info -->
+    <div class="info-section">
+      <p><strong>Login ID:</strong> {{ user.login_id }}</p>
+      <p><strong>Bot Token:</strong> {{ user.bot_token }}</p>
+      <p><strong>Strategy:</strong> {{ user.strategy }}</p>
+    </div>
+
+    <!-- Strategy Settings -->
+    <form method="post" action="/update-settings" class="settings-form">
+      <label for="method">Trading Method</label>
+      <select name="method" id="method">
+        <option value="Forex">Forex</option>
+        <option value="Binary">Binary</option>
+      </select>
+
+      <label for="strategy">Strategy</label>
+      <select name="strategy" id="strategy">
+        <option value="Scalping">Scalping</option>
+        <option value="Day Trading">Day Trading</option>
+        <option value="Swing Trading">Swing Trading</option>
+      </select>
+
+      <label for="risk">Risk Percent</label>
+      <select name="risk" id="risk">
+        <option value="1">1%</option>
+        <option value="2">2%</option>
+        <option value="3">3%</option>
+        <option value="4">4%</option>
+        <option value="5">5%</option>
+      </select>
+
+      <button type="submit">Save Settings</button>
+    </form>
 
     <!-- Trade Logs Section -->
     <div class="trade-log-section">
