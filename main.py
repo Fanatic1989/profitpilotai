@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response  # Import Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
@@ -58,17 +58,12 @@ async def submit(
 
     print(f"Received bot config - Token: {bot_token}, Login ID: {login_id}, Strategy: {strategy}")
 
-    # Process the form data (e.g., save to database)
     try:
-        # Save user data or perform other actions
-        # Example: Store user data in session
         request.session["user"] = {
             "login_id": login_id,
             "bot_token": bot_token,
             "strategy": strategy
         }
-
-        # Redirect to the user dashboard
         return RedirectResponse("/dashboard", status_code=303)
     except Exception as e:
         return HTMLResponse(f"<h2>Error: {str(e)}</h2>", status_code=500)
@@ -77,7 +72,7 @@ async def submit(
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_login(request: Request):
     try:
-        with open("admin_login.html", "r") as file:  # Read admin_login.html directly from root
+        with open("admin_login.html", "r") as file:
             content = file.read()
         return HTMLResponse(content=content)
     except FileNotFoundError:
@@ -106,7 +101,7 @@ async def admin_dashboard(request: Request):
         return RedirectResponse("/admin", status_code=303)
 
     try:
-        with open("admin.html", "r") as file:  # Read admin.html directly from root
+        with open("admin.html", "r") as file:
             content = file.read()
         return HTMLResponse(content=content)
     except FileNotFoundError:
@@ -120,8 +115,19 @@ async def dashboard(request: Request):
         return RedirectResponse("/", status_code=303)
 
     try:
-        with open("user_dashboard.html", "r") as file:  # Read user_dashboard.html directly from root
+        with open("user_dashboard.html", "r") as file:
             content = file.read()
+
+        # Replace placeholders with real session data
+        content = content.replace("{{ user.login_id }}", user_data["login_id"])
+        content = content.replace("{{ user.bot_token }}", user_data["bot_token"])
+        content = content.replace("{{ user.strategy }}", user_data["strategy"])
+
+        # Optional: clean template logic blocks
+        content = content.replace("{% if logs %}", "").replace("{% endif %}", "")
+        content = content.replace("{% for log in logs %}", "").replace("{% endfor %}", "")
+        content = content.replace("{% else %}No trade logs yet.", "")
+
         return HTMLResponse(content=content)
     except FileNotFoundError:
         return HTMLResponse("<h1>Error: user_dashboard.html not found</h1>", status_code=404)
