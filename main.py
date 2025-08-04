@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response  # Ensure Response is imported
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
@@ -45,7 +45,7 @@ async def read_root(request: Request):
 
 @app.head("/")
 async def head_root():
-    return Response(status_code=200)
+    return Response(status_code=200)  # Now properly imported and works as expected
 
 # === Submit Form to Supabase ===
 @app.post("/submit", response_class=HTMLResponse)
@@ -84,7 +84,7 @@ async def submit(
         }).execute()
 
         # ✅ Fix for 'APIResponse' crash
-        if response.error:
+        if hasattr(response, "error") and response.error:
             return HTMLResponse(f"<h2>DB Error: {response.error.message}</h2>", status_code=500)
 
         return RedirectResponse("/dashboard", status_code=303)
