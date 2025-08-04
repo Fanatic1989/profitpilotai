@@ -26,12 +26,9 @@ DISCORD_LINK = os.getenv("DISCORD_LINK")
 ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
-# === Startup Hook ===
 @app.on_event("startup")
 async def startup():
-    pass  # Placeholder for any init logic
-
-# === Routes ===
+    pass
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -48,15 +45,14 @@ async def read_root(request: Request):
 async def head_root():
     return Response(status_code=200)
 
-# === Submit Form to Supabase ===
 @app.post("/submit", response_class=HTMLResponse)
 async def submit(
     request: Request,
     bot_token: str = Form(...),
     login_id: str = Form(...),
-    strategy: str = Form(...),        # scalping / day trading / swing trading
-    trading_type: str = Form(...),    # forex / binary
-    risk_percent: int = Form(...),    # 1–5 only
+    strategy: str = Form(...),
+    trading_type: str = Form(...),
+    risk_percent: int = Form(...),
     password: str = Form(...)
 ):
     if password != ADMIN_PASSWORD:
@@ -90,7 +86,6 @@ async def submit(
     except Exception as e:
         return HTMLResponse(f"<h2>Server Error: {str(e)}</h2>", status_code=500)
 
-# === Admin Login ===
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_login(request: Request):
     try:
@@ -137,7 +132,6 @@ async def delete_user(request: Request, login_id: str):
     except Exception as e:
         return HTMLResponse(f"<h2>Error deleting user: {str(e)}</h2>", status_code=500)
 
-# === User Dashboard ===
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     user_data = request.session.get("user")
@@ -183,7 +177,6 @@ async def dashboard(request: Request):
     except Exception as e:
         return HTMLResponse(f"<h2>Error loading dashboard: {str(e)}</h2>", status_code=500)
 
-# === Update Settings ===
 @app.post("/update-settings", response_class=HTMLResponse)
 async def update_settings(
     request: Request,
@@ -212,7 +205,6 @@ async def update_settings(
     except Exception as e:
         return HTMLResponse(f"<h2>Error updating settings: {str(e)}</h2>", status_code=500)
 
-# === Logout ===
 @app.get("/logout")
 async def logout(request: Request):
     request.session.clear()
