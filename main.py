@@ -45,7 +45,7 @@ async def read_root(request: Request):
 
 @app.head("/")
 async def head_root():
-    return Response(status_code=200)  # Properly imported and works as expected
+    return Response(status_code=200)
 
 # === Submit Form to Supabase ===
 @app.post("/submit", response_class=HTMLResponse)
@@ -83,7 +83,6 @@ async def submit(
             "risk_percent": risk_percent
         }).execute()
 
-        # Fix for 'APIResponse' crash
         if hasattr(response, "error") and response.error:
             return HTMLResponse(f"<h2>DB Error: {response.error.message}</h2>", status_code=500)
 
@@ -134,10 +133,14 @@ async def dashboard(request: Request):
         result = supabase.table("user_settings") \
             .select("*") \
             .eq("login_id", user_data["login_id"]) \
-            .single() \
+            .limit(1) \
             .execute()
 
-        row = result.data if hasattr(result, 'data') else {}
+        if not result.data or not isinstance(result.data, list) or len(result.data) == 0:
+            raise Exception("No matching user found in database.")
+
+        row = result.data[0]
+
         stats = {
             "trading_type": row.get("trading_type", ""),
             "risk_percent": str(row.get("risk_percent", "")),
