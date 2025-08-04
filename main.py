@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from jinja2 import Template
 
 # Load .env config
 load_dotenv()
@@ -65,7 +66,6 @@ async def submit(
         return HTMLResponse("<h2>Error: Risk % must be between 1 and 5</h2>", status_code=400)
 
     try:
-        # Save to session
         request.session["user"] = {
             "login_id": login_id,
             "bot_token": bot_token,
@@ -74,7 +74,6 @@ async def submit(
             "risk_percent": risk_percent
         }
 
-        # Save to Supabase (upsert ensures uniqueness by login_id)
         response = supabase.table("user_settings").upsert({
             "login_id": login_id,
             "bot_token": bot_token,
@@ -117,10 +116,26 @@ async def admin_dashboard(request: Request):
     if not request.session.get("admin_logged_in"):
         return RedirectResponse("/admin", status_code=303)
     try:
+        result = supabase.table("user_settings").select("*").execute()
+        users = result.data if hasattr(result, 'data') else []
+
         with open("admin.html", "r") as file:
-            return HTMLResponse(content=file.read())
-    except FileNotFoundError:
-        return HTMLResponse("<h1>Error: admin.html not found</h1>", status_code=404)
+            template = Template(file.read())
+        content = template.render(users=users)
+
+        return HTMLResponse(content=content)
+    except Exception as e:
+        return HTMLResponse(f"<h2>Error loading admin dashboard: {str(e)}</h2>", status_code=500)
+
+@app.post("/admin/delete-user/{login_id}", response_class=HTMLResponse)
+async def delete_user(request: Request, login_id: str):
+    if not request.session.get("admin_logged_in"):
+        return RedirectResponse("/admin", status_code=303)
+    try:
+        supabase.table("user_settings").delete().eq("login_id", login_id).execute()
+        return RedirectResponse("/admin/dashboard", status_code=303)
+    except Exception as e:
+        return HTMLResponse(f"<h2>Error deleting user: {str(e)}</h2>", status_code=500)
 
 # === User Dashboard ===
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -187,7 +202,6 @@ async def update_settings(
             "risk_percent": risk
         }).eq("login_id", user_data["login_id"]).execute()
 
-        # Update session values too
         user_data["strategy"] = strategy
         user_data["trading_type"] = method
         user_data["risk_percent"] = risk
