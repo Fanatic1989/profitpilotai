@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response  # Ensure Response is imported
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
@@ -45,7 +45,7 @@ async def read_root(request: Request):
 
 @app.head("/")
 async def head_root():
-    return Response(status_code=200)  # Now properly imported and works as expected
+    return Response(status_code=200)  # Properly imported and works as expected
 
 # === Submit Form to Supabase ===
 @app.post("/submit", response_class=HTMLResponse)
@@ -74,7 +74,7 @@ async def submit(
             "risk_percent": risk_percent
         }
 
-        # ✅ Save to Supabase (upsert ensures uniqueness by login_id)
+        # Save to Supabase (upsert ensures uniqueness by login_id)
         response = supabase.table("user_settings").upsert({
             "login_id": login_id,
             "bot_token": bot_token,
@@ -83,7 +83,7 @@ async def submit(
             "risk_percent": risk_percent
         }).execute()
 
-        # ✅ Fix for 'APIResponse' crash
+        # Fix for 'APIResponse' crash
         if hasattr(response, "error") and response.error:
             return HTMLResponse(f"<h2>DB Error: {response.error.message}</h2>", status_code=500)
 
@@ -131,21 +131,69 @@ async def dashboard(request: Request):
         return RedirectResponse("/", status_code=303)
 
     try:
+        result = supabase.table("user_settings") \
+            .select("*") \
+            .eq("login_id", user_data["login_id"]) \
+            .single() \
+            .execute()
+
+        row = result.data if hasattr(result, 'data') else {}
+        stats = {
+            "trading_type": row.get("trading_type", ""),
+            "risk_percent": str(row.get("risk_percent", "")),
+            "total_trades": row.get("total_trades", 0),
+            "total_wins": row.get("total_wins", 0),
+            "total_losses": row.get("total_losses", 0),
+            "win_rate": row.get("win_rate", 0),
+        }
+
         with open("user_dashboard.html", "r") as file:
             content = file.read()
+
         content = (
             content.replace("{{ user.login_id }}", user_data["login_id"])
                    .replace("{{ user.bot_token }}", user_data["bot_token"])
                    .replace("{{ user.strategy }}", user_data["strategy"])
-                   .replace("{% if logs %}", "")
-                   .replace("{% endif %}", "")
-                   .replace("{% for log in logs %}", "")
-                   .replace("{% endfor %}", "")
-                   .replace("{% else %}No trade logs yet.", "")
+                   .replace("{{ user.trading_type }}", stats["trading_type"])
+                   .replace("{{ user.risk_percent }}", stats["risk_percent"])
+                   .replace("{{ stats.total_trades }}", str(stats["total_trades"]))
+                   .replace("{{ stats.total_wins }}", str(stats["total_wins"]))
+                   .replace("{{ stats.total_losses }}", str(stats["total_losses"]))
+                   .replace("{{ stats.win_rate }}", str(stats["win_rate"]))
         )
         return HTMLResponse(content=content)
-    except FileNotFoundError:
-        return HTMLResponse("<h1>Error: user_dashboard.html not found</h1>", status_code=404)
+    except Exception as e:
+        return HTMLResponse(f"<h2>Error loading dashboard: {str(e)}</h2>", status_code=500)
+
+# === Update Settings ===
+@app.post("/update-settings", response_class=HTMLResponse)
+async def update_settings(
+    request: Request,
+    method: str = Form(...),
+    strategy: str = Form(...),
+    risk: int = Form(...)
+):
+    user_data = request.session.get("user")
+    if not user_data:
+        return RedirectResponse("/", status_code=303)
+
+    try:
+        supabase.table("user_settings").update({
+            "trading_type": method.lower(),
+            "strategy": strategy.lower(),
+            "risk_percent": risk
+        }).eq("login_id", user_data["login_id"]).execute()
+
+        # Update session values too
+        user_data["strategy"] = strategy
+        user_data["trading_type"] = method
+        user_data["risk_percent"] = risk
+        request.session["user"] = user_data
+
+        return RedirectResponse("/dashboard", status_code=303)
+
+    except Exception as e:
+        return HTMLResponse(f"<h2>Error updating settings: {str(e)}</h2>", status_code=500)
 
 # === Logout ===
 @app.get("/logout")
