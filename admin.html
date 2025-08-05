@@ -12,16 +12,18 @@
       color: #fff;
       padding: 2rem;
     }
-    h1, h2, h3 {
+    h1, h2 {
       color: #38bdf8;
+      margin-bottom: 1rem;
     }
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 1rem;
+      font-size: 0.95rem;
     }
     th, td {
-      padding: 0.75rem;
+      padding: 0.6rem;
       border: 1px solid #1e293b;
       text-align: center;
     }
@@ -31,11 +33,12 @@
     a, button {
       background: #38bdf8;
       color: #000;
-      padding: 6px 12px;
+      padding: 4px 10px;
       border: none;
       border-radius: 4px;
       text-decoration: none;
       cursor: pointer;
+      font-size: 0.85rem;
     }
     a:hover, button:hover {
       background: #0ea5e9;
@@ -46,81 +49,79 @@
     .panel {
       background: #1e293b;
       padding: 1rem;
-      margin: 1rem 0;
-      border-radius: 8px;
+      border-radius: 6px;
+      margin-bottom: 1rem;
     }
-    .panel h3 {
-      margin-top: 0;
+    input, select {
+      margin: 4px;
+      padding: 6px;
+      border-radius: 4px;
+      border: none;
+    }
+    .row-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
     }
   </style>
 </head>
 <body>
   <div class="container">
-
     {% if not request.session.get('admin_logged_in') %}
       <form method="post" action="/admin">
-        <h1>Login</h1>
+        <h1>Admin Login</h1>
         <input type="text" name="login_id" placeholder="Login ID" required />
         <input type="password" name="password" placeholder="Admin Password" required />
-        <button type="submit">Submit</button>
+        <button type="submit">Login</button>
       </form>
-
       {% if error %}
         <p style="color: red;">{{ error }}</p>
       {% endif %}
-
     {% else %}
-      <h1>Welcome, Admin 👑</h1>
-      <p>You are logged in to the admin dashboard.</p>
-      <p><a href="/logout">Logout</a> | <a href="/">Back to Site</a></p>
+      <h1>Admin Panel 👑</h1>
+      <p><a href="/logout">Logout</a> | <a href="/">Back</a></p>
 
-      <!-- ✅ Add New User Panel -->
+      <!-- Add New User -->
       <div class="panel">
-        <h3>➕ Add New User</h3>
         <form method="post" action="/submit">
           <input type="text" name="login_id" placeholder="Login ID" required />
           <input type="text" name="bot_token" placeholder="Bot Token" required />
-          <select name="strategy" required>
-            <option value="scalping">Scalping</option>
-            <option value="day trading">Day Trading</option>
-            <option value="swing trading">Swing Trading</option>
+          <select name="strategy">
+            <option>scalping</option>
+            <option>day trading</option>
+            <option>swing trading</option>
           </select>
-          <select name="trading_type" required>
-            <option value="forex">Forex</option>
-            <option value="binary">Binary</option>
+          <select name="trading_type">
+            <option>forex</option>
+            <option>binary</option>
           </select>
           <input type="number" name="risk_percent" placeholder="Risk %" min="1" max="5" required />
           <input type="password" name="password" placeholder="Admin Password" required />
-          <button type="submit">Add User</button>
+          <button type="submit">Add</button>
         </form>
       </div>
 
-      <!-- 🤖 Bot Status Panel -->
+      <!-- Bot Status Panel -->
       <div class="panel">
-        <h3>🤖 Bot Status</h3>
-        <p>Bot is currently: <strong style="color: lime">Online</strong></p>
-        <p>Connected Users: {{ users | length }}</p>
+        <p>Bot Status: <strong style="color: lime">Online</strong></p>
+        <p>Users Connected: {{ users | length }}</p>
         <p>Last Sync: {{ last_sync or "N/A" }}</p>
-        <!-- In the future: add "Restart Bot", "Sync Now", "Check Logs" -->
       </div>
 
-      <!-- 🧾 All Users Table -->
-      <h2>📊 Admin Dashboard</h2>
-      <h3>All User Submissions</h3>
-
+      <!-- User Table -->
       {% if users %}
         <table>
           <thead>
             <tr>
-              <th>Login ID</th>
+              <th>Login</th>
               <th>Strategy</th>
               <th>Type</th>
-              <th>Risk %</th>
-              <th>Total Trades</th>
-              <th>Total Wins</th>
-              <th>Total Losses</th>
-              <th>Win Rate</th>
-              <th>Lifetime?</th>
+              <th>Risk</th>
+              <th>Trades</th>
+              <th>Wins</th>
+              <th>Losses</th>
+              <th>Win %</th>
+              <th>Lifetime</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -136,10 +137,10 @@
               <td>{{ user.total_losses }}</td>
               <td>{{ user.win_rate }}%</td>
               <td>{% if user.lifetime %}✅{% else %}❌{% endif %}</td>
-              <td>
+              <td class="row-actions">
                 <a href="/admin/edit-user/{{ user.login_id }}">Edit</a>
                 <form method="post" action="/admin/delete-user/{{ user.login_id }}" class="inline-form">
-                  <button onclick="return confirm('Delete this user?')">Delete</button>
+                  <button onclick="return confirm('Delete user?')">Delete</button>
                 </form>
               </td>
             </tr>
