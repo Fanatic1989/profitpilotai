@@ -12,7 +12,7 @@
       color: #fff;
       padding: 2rem;
     }
-    h1, h2 {
+    h1, h2, h3 {
       color: #38bdf8;
       margin-bottom: 1rem;
     }
@@ -162,25 +162,5 @@
   {% endif %}
 
 </div>
-
-<script>
-  async function toggleLifetime(loginId, currentStatus) {
-    const response = await fetch('/admin/toggle-lifetime', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ login_id: loginId, current: currentStatus })
-    });
-    if (response.ok) location.reload();
-  }
-
-  async function toggleBotStatus(loginId, status) {
-    const response = await fetch('/admin/toggle-bot-status', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ login_id: loginId, current: status })
-    });
-    if (response.ok) location.reload();
-  }
-</script>
 </body>
 </html>
