@@ -118,16 +118,7 @@
       </thead>
       <tbody>
         {% for user in users %}
-          <tr>
-            <td>{{ user.login_id }}</td>
-            <td>{{ user.strategy }}</td>
-            <td>{{ user.trading_type }}</td>
-            <td>{{ user.risk_percent }}</td>
-            <td>{{ user.total_trades }}</td>
-            <td>{{ user.total_wins }}</td>
-            <td>{{ user.total_losses }}</td>
-            <td>{{ user.win_rate }}%</td>
-
+          
             <!-- Lifetime toggle -->
             <td>
               <form method="post" action="/admin/toggle-lifetime/{{ user.login_id }}">
