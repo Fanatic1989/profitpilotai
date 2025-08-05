@@ -61,6 +61,22 @@ async def submit(
         return HTMLResponse("<h2>Error: Risk % must be between 1 and 5</h2>", status_code=400)
 
     try:
+        response = supabase.table("user_settings").upsert({
+            "login_id": login_id,
+            "bot_token": bot_token,
+            "strategy": strategy,
+            "trading_type": trading_type,
+            "risk_percent": risk_percent,
+            "total_trades": 0,
+            "total_wins": 0,
+            "total_losses": 0,
+            "bot_status": "active",
+            "lifetime": False
+        }).execute()
+
+        if request.session.get("admin_logged_in"):
+            return RedirectResponse("/admin/dashboard", status_code=303)
+
         request.session["user"] = {
             "login_id": login_id,
             "bot_token": bot_token,
@@ -68,17 +84,6 @@ async def submit(
             "trading_type": trading_type,
             "risk_percent": risk_percent
         }
-
-        response = supabase.table("user_settings").upsert({
-            "login_id": login_id,
-            "bot_token": bot_token,
-            "strategy": strategy,
-            "trading_type": trading_type,
-            "risk_percent": risk_percent
-        }).execute()
-
-        if hasattr(response, "error") and response.error:
-            return HTMLResponse(f"<h2>DB Error: {response.error.message}</h2>", status_code=500)
 
         return RedirectResponse("/dashboard", status_code=303)
 
@@ -117,8 +122,44 @@ async def admin_dashboard(request: Request):
         with open("admin.html", "r") as file:
             content = file.read()
 
-        content = content.replace("{{ users|tojson }}", str(users))
+        user_rows = ""
+        for user in users:
+            user_rows += f"""
+            <tr>
+              <td>{user['login_id']}</td>
+              <td>{user['strategy']}</td>
+              <td>{user['trading_type']}</td>
+              <td>{user['risk_percent']}</td>
+              <td>{user['total_trades']}</td>
+              <td>{user['total_wins']}</td>
+              <td>{user['total_losses']}</td>
+              <td>{user['win_rate']}%</td>
+              <td>
+                <form method='post' action='/admin/toggle-lifetime/{user['login_id']}'>
+                  <button style='background-color: {'green' if user['lifetime'] else 'red'}; color: white;'>
+                    {'✅' if user['lifetime'] else '❌'}
+                  </button>
+                </form>
+              </td>
+              <td>
+                <form method='post' action='/admin/toggle-bot/{user['login_id']}'>
+                  <button style='background-color: {'green' if user['bot_status'] == 'active' else 'gray'}; color: white;'>
+                    {user['bot_status']}
+                  </button>
+                </form>
+              </td>
+              <td>
+                <a href='/admin/edit-user/{user['login_id']}'>Edit</a>
+                <form method='post' action='/admin/delete-user/{user['login_id']}' class='inline-form'>
+                  <button onclick="return confirm('Delete this user?')">Delete</button>
+                </form>
+              </td>
+            </tr>
+            """
+
+        content = content.replace("{% for user in users %}{% endfor %}", user_rows)
         return HTMLResponse(content=content)
+
     except Exception as e:
         return HTMLResponse(f"<h2>Error loading admin dashboard: {str(e)}</h2>", status_code=500)
 
