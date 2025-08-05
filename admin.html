@@ -6,14 +6,13 @@
   <title>{% if request.session.get('admin_logged_in') %}Admin Dashboard{% else %}Admin Login{% endif %}</title>
   <link rel="stylesheet" href="/static/style.css" />
   <style>
-    /* Styles for Admin Dashboard */
     body {
       font-family: Arial, sans-serif;
       background: #0f172a;
       color: #fff;
       padding: 2rem;
     }
-    h1 {
+    h1, h2, h3 {
       color: #38bdf8;
     }
     table {
@@ -41,11 +40,23 @@
     a:hover, button:hover {
       background: #0ea5e9;
     }
+    form.inline-form {
+      display: inline;
+    }
+    .panel {
+      background: #1e293b;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 8px;
+    }
+    .panel h3 {
+      margin-top: 0;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- Display Admin Login Form -->
+
     {% if not request.session.get('admin_logged_in') %}
       <form method="post" action="/admin">
         <h1>Login</h1>
@@ -54,22 +65,49 @@
         <button type="submit">Submit</button>
       </form>
 
-      <!-- Display error message if login fails -->
       {% if error %}
         <p style="color: red;">{{ error }}</p>
       {% endif %}
 
-    <!-- Display Admin Dashboard -->
     {% else %}
       <h1>Welcome, Admin 👑</h1>
       <p>You are logged in to the admin dashboard.</p>
-
       <p><a href="/logout">Logout</a> | <a href="/">Back to Site</a></p>
 
-      <h2>📊 Admin Dashboard</h2>
+      <!-- ✅ Add New User Panel -->
+      <div class="panel">
+        <h3>➕ Add New User</h3>
+        <form method="post" action="/submit">
+          <input type="text" name="login_id" placeholder="Login ID" required />
+          <input type="text" name="bot_token" placeholder="Bot Token" required />
+          <select name="strategy" required>
+            <option value="scalping">Scalping</option>
+            <option value="day trading">Day Trading</option>
+            <option value="swing trading">Swing Trading</option>
+          </select>
+          <select name="trading_type" required>
+            <option value="forex">Forex</option>
+            <option value="binary">Binary</option>
+          </select>
+          <input type="number" name="risk_percent" placeholder="Risk %" min="1" max="5" required />
+          <input type="password" name="password" placeholder="Admin Password" required />
+          <button type="submit">Add User</button>
+        </form>
+      </div>
 
-      <!-- Display All User Submissions -->
+      <!-- 🤖 Bot Status Panel -->
+      <div class="panel">
+        <h3>🤖 Bot Status</h3>
+        <p>Bot is currently: <strong style="color: lime">Online</strong></p>
+        <p>Connected Users: {{ users | length }}</p>
+        <p>Last Sync: {{ last_sync or "N/A" }}</p>
+        <!-- In the future: add "Restart Bot", "Sync Now", "Check Logs" -->
+      </div>
+
+      <!-- 🧾 All Users Table -->
+      <h2>📊 Admin Dashboard</h2>
       <h3>All User Submissions</h3>
+
       {% if users %}
         <table>
           <thead>
@@ -100,8 +138,8 @@
               <td>{% if user.lifetime %}✅{% else %}❌{% endif %}</td>
               <td>
                 <a href="/admin/edit-user/{{ user.login_id }}">Edit</a>
-                <form method="post" action="/admin/delete-user/{{ user.login_id }}" style="display:inline;">
-                  <button onclick="return confirm('Are you sure you want to delete this user?')">Delete</button>
+                <form method="post" action="/admin/delete-user/{{ user.login_id }}" class="inline-form">
+                  <button onclick="return confirm('Delete this user?')">Delete</button>
                 </form>
               </td>
             </tr>
