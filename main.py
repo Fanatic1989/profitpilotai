@@ -5,7 +5,6 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from supabase import create_client, Client
-from jinja2 import Template
 
 # Load .env config
 load_dotenv()
@@ -110,14 +109,15 @@ async def admin_auth(request: Request, login_id: str = Form(...), password: str 
 async def admin_dashboard(request: Request):
     if not request.session.get("admin_logged_in"):
         return RedirectResponse("/admin", status_code=303)
+
     try:
         result = supabase.table("user_settings").select("*").execute()
         users = result.data if hasattr(result, 'data') else []
 
         with open("admin.html", "r") as file:
-            template = Template(file.read())
-        content = template.render(users=users)
+            content = file.read()
 
+        content = content.replace("{{ users|tojson }}", str(users))
         return HTMLResponse(content=content)
     except Exception as e:
         return HTMLResponse(f"<h2>Error loading admin dashboard: {str(e)}</h2>", status_code=500)
