@@ -98,55 +98,68 @@
   </div>
 
   <!-- Live User Table -->
-  <h2>User Table</h2>
+  <h3>🧑‍💻 User Table</h3>
+  {% if users %}
+    <table>
+      <thead>
+        <tr>
+          <th>Login</th>
+          <th>Strategy</th>
+          <th>Type</th>
+          <th>Risk</th>
+          <th>Trades</th>
+          <th>Wins</th>
+          <th>Losses</th>
+          <th>Win %</th>
+          <th>Lifetime</th>
+          <th>Bot</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+          <tr>
+            <td>{{ user.login_id }}</td>
+            <td>{{ user.strategy }}</td>
+            <td>{{ user.trading_type }}</td>
+            <td>{{ user.risk_percent }}</td>
+            <td>{{ user.total_trades }}</td>
+            <td>{{ user.total_wins }}</td>
+            <td>{{ user.total_losses }}</td>
+            <td>{{ user.win_rate }}%</td>
 
-  {% for user in users %}
-  <table>
-    <thead>
-    <tr>
-      <th>Login</th>
-      <th>Strategy</th>
-      <th>Type</th>
-      <th>Risk</th>
-      <th>Trades</th>
-      <th>Wins</th>
-      <th>Losses</th>
-      <th>Win %</th>
-      <th>Lifetime</th>
-      <th>Status</th>
-      <th>Actions</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr>
-      <td>{{ user.login_id }}</td>
-      <td>{{ user.strategy }}</td>
-      <td>{{ user.trading_type }}</td>
-      <td>{{ user.risk_percent }}</td>
-      <td>{{ user.total_trades }}</td>
-      <td>{{ user.total_wins }}</td>
-      <td>{{ user.total_losses }}</td>
-      <td>{{ user.win_rate }}%</td>
-      <td>
-        <button onclick="toggleLifetime('{{ user.login_id }}', {{ 'true' if user.lifetime else 'false' }})">
-          {% if user.lifetime %}✅{% else %}❌{% endif %}
-        </button>
-      </td>
-      <td>
-        <button onclick="toggleBotStatus('{{ user.login_id }}', '{{ user.bot_status }}')">
-          {{ 'Pause' if user.bot_status == 'active' else 'Resume' }}
-        </button>
-      </td>
-      <td class="row-actions">
-        <a href="/admin/edit-user/{{ user.login_id }}">Edit</a>
-        <form method="post" action="/admin/delete-user/{{ user.login_id }}" class="inline-form">
-          <button onclick="return confirm('Delete user?')">Delete</button>
-        </form>
-      </td>
-    </tr>
-    </tbody>
-  </table>
-  {% endfor %}
+            <!-- Lifetime toggle -->
+            <td>
+              <form method="post" action="/admin/toggle-lifetime/{{ user.login_id }}">
+                <button style="background-color: {{ 'green' if user.lifetime else 'red' }}; color: white;">
+                  {{ '✅' if user.lifetime else '❌' }}
+                </button>
+              </form>
+            </td>
+
+            <!-- Bot status toggle -->
+            <td>
+              <form method="post" action="/admin/toggle-bot/{{ user.login_id }}">
+                <button style="background-color: {{ 'green' if user.bot_status == 'active' else 'gray' }}; color: white;">
+                  {{ user.bot_status }}
+                </button>
+              </form>
+            </td>
+
+            <!-- Edit/Delete -->
+            <td>
+              <a href="/admin/edit-user/{{ user.login_id }}">Edit</a>
+              <form method="post" action="/admin/delete-user/{{ user.login_id }}" style="display:inline;">
+                <button onclick="return confirm('Delete this user?')">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No users found.</p>
+  {% endif %}
 
 </div>
 
