@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
@@ -209,3 +209,23 @@ async def update_settings(
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/", status_code=303)
+
+# === NEW ROUTES ===
+
+@app.post("/admin/toggle-lifetime")
+async def toggle_lifetime(request: Request):
+    data = await request.json()
+    login_id = data["login_id"]
+    current = data["current"]
+    new_status = not current
+    supabase.table("user_settings").update({"lifetime": new_status}).eq("login_id", login_id).execute()
+    return JSONResponse(content={"success": True})
+
+@app.post("/admin/toggle-bot-status")
+async def toggle_bot_status(request: Request):
+    data = await request.json()
+    login_id = data["login_id"]
+    current = data["current"]
+    new_status = "paused" if current == "active" else "active"
+    supabase.table("user_settings").update({"bot_status": new_status}).eq("login_id", login_id).execute()
+    return JSONResponse(content={"success": True})
