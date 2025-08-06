@@ -141,7 +141,7 @@
           <td>
             <form method="post" action="/admin/toggle-bot/{{ user.login_id }}">
               <button style="background-color: {{ 'green' if user.bot_status == 'active' else 'gray' }}; color: white;">
-                {{ user.bot_status or 'inactive' }}
+                {{ user.bot_status if user.bot_status else 'inactive' }}
               </button>
             </form>
           </td>
