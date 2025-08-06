@@ -118,33 +118,42 @@
       </thead>
       <tbody>
         {% for user in users %}
-          
-            <!-- Lifetime toggle -->
-            <td>
-              <form method="post" action="/admin/toggle-lifetime/{{ user.login_id }}">
-                <button style="background-color: {{ 'green' if user.lifetime else 'red' }}; color: white;">
-                  {{ '✅' if user.lifetime else '❌' }}
-                </button>
-              </form>
-            </td>
+        <tr>
+          <td>{{ user.login_id }}</td>
+          <td>{{ user.strategy }}</td>
+          <td>{{ user.trading_type }}</td>
+          <td>{{ user.risk_percent }}</td>
+          <td>{{ user.total_trades }}</td>
+          <td>{{ user.total_wins }}</td>
+          <td>{{ user.total_losses }}</td>
+          <td>{{ user.win_rate }}%</td>
 
-            <!-- Bot status toggle -->
-            <td>
-              <form method="post" action="/admin/toggle-bot/{{ user.login_id }}">
-                <button style="background-color: {{ 'green' if user.bot_status == 'active' else 'gray' }}; color: white;">
-                  {{ user.bot_status }}
-                </button>
-              </form>
-            </td>
+          <!-- Lifetime toggle -->
+          <td>
+            <form method="post" action="/admin/toggle-lifetime/{{ user.login_id }}">
+              <button style="background-color: {{ 'green' if user.lifetime else 'red' }}; color: white;">
+                {{ '✅' if user.lifetime else '❌' }}
+              </button>
+            </form>
+          </td>
 
-            <!-- Edit/Delete -->
-            <td>
-              <a href="/admin/edit-user/{{ user.login_id }}">Edit</a>
-              <form method="post" action="/admin/delete-user/{{ user.login_id }}" style="display:inline;">
-                <button onclick="return confirm('Delete this user?')">Delete</button>
-              </form>
-            </td>
-          </tr>
+          <!-- Bot status toggle -->
+          <td>
+            <form method="post" action="/admin/toggle-bot/{{ user.login_id }}">
+              <button style="background-color: {{ 'green' if user.bot_status == 'active' else 'gray' }}; color: white;">
+                {{ user.bot_status or 'inactive' }}
+              </button>
+            </form>
+          </td>
+
+          <!-- Edit/Delete -->
+          <td class="row-actions">
+            <a href="/admin/edit-user/{{ user.login_id }}">Edit</a>
+            <form method="post" action="/admin/delete-user/{{ user.login_id }}" class="inline-form">
+              <button onclick="return confirm('Delete this user?')">Delete</button>
+            </form>
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
