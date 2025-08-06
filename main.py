@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from fastapi.templating import Jinja2Templates
 
 # Load .env config
 load_dotenv()
@@ -19,6 +20,9 @@ app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "supersecret"))
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# === Template Setup ===
+templates = Jinja2Templates(directory="templates")  # Ensure templates are in a "templates" folder
+
 # === ENV Vars ===
 TELEGRAM_LINK = os.getenv("TELEGRAM_LINK")
 DISCORD_LINK = os.getenv("DISCORD_LINK")
@@ -32,13 +36,14 @@ async def startup():
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     try:
-        with open("index.html", "r") as file:
-            content = file.read()
-        content = content.replace("{{ telegram_link }}", TELEGRAM_LINK or "#")
-        content = content.replace("{{ discord_link }}", DISCORD_LINK or "#")
-        return HTMLResponse(content=content)
-    except FileNotFoundError:
-        return HTMLResponse("<h1>Error: index.html not found</h1>", status_code=404)
+        # Use template to render index.html with variables
+        return templates.TemplateResponse("index.html", {
+            "request": request,
+            "telegram_link": TELEGRAM_LINK or "#",
+            "discord_link": DISCORD_LINK or "#"
+        })
+    except Exception:
+        return HTMLResponse("<h1>Error: index.html not found or error occurred</h1>", status_code=404)
 
 @app.head("/")
 async def head_root():
@@ -93,9 +98,8 @@ async def submit(
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_login(request: Request):
     try:
-        with open("admin_login.html", "r") as file:
-            return HTMLResponse(content=file.read())
-    except FileNotFoundError:
+        return templates.TemplateResponse("admin_login.html", {"request": request, "error": ""})
+    except Exception:
         return HTMLResponse("<h1>Error: admin_login.html not found</h1>", status_code=404)
 
 @app.post("/admin", response_class=HTMLResponse)
@@ -105,9 +109,11 @@ async def admin_auth(request: Request, login_id: str = Form(...), password: str 
         return RedirectResponse("/admin/dashboard", status_code=303)
 
     try:
-        with open("admin_login.html", "r") as file:
-            return HTMLResponse(content=file.read().replace("{{ error }}", "Invalid login credentials. Please try again."))
-    except FileNotFoundError:
+        return templates.TemplateResponse("admin_login.html", {
+            "request": request,
+            "error": "Invalid login credentials. Please try again."
+        })
+    except Exception:
         return HTMLResponse("<h1>Error: admin_login.html not found</h1>", status_code=404)
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
@@ -118,48 +124,7 @@ async def admin_dashboard(request: Request):
     try:
         result = supabase.table("user_settings").select("*").execute()
         users = result.data if hasattr(result, 'data') else []
-
-        with open("admin.html", "r") as file:
-            content = file.read()
-
-        user_rows = ""
-        for user in users:
-            user_rows += f"""
-            <tr>
-              <td>{user['login_id']}</td>
-              <td>{user['strategy']}</td>
-              <td>{user['trading_type']}</td>
-              <td>{user['risk_percent']}</td>
-              <td>{user['total_trades']}</td>
-              <td>{user['total_wins']}</td>
-              <td>{user['total_losses']}</td>
-              <td>{user['win_rate']}%</td>
-              <td>
-                <form method='post' action='/admin/toggle-lifetime/{user['login_id']}'>
-                  <button style='background-color: {'green' if user['lifetime'] else 'red'}; color: white;'>
-                    {'✅' if user['lifetime'] else '❌'}
-                  </button>
-                </form>
-              </td>
-              <td>
-                <form method='post' action='/admin/toggle-bot/{user['login_id']}'>
-                  <button style='background-color: {'green' if user['bot_status'] == 'active' else 'gray'}; color: white;'>
-                    {user['bot_status']}
-                  </button>
-                </form>
-              </td>
-              <td>
-                <a href='/admin/edit-user/{user['login_id']}'>Edit</a>
-                <form method='post' action='/admin/delete-user/{user['login_id']}' class='inline-form'>
-                  <button onclick="return confirm('Delete this user?')">Delete</button>
-                </form>
-              </td>
-            </tr>
-            """
-
-        content = content.replace("{% for user in users %}{% endfor %}", user_rows)
-        return HTMLResponse(content=content)
-
+        return templates.TemplateResponse("admin.html", {"request": request, "users": users})
     except Exception as e:
         return HTMLResponse(f"<h2>Error loading admin dashboard: {str(e)}</h2>", status_code=500)
 
@@ -200,21 +165,12 @@ async def dashboard(request: Request):
             "win_rate": row.get("win_rate", 0),
         }
 
-        with open("user_dashboard.html", "r") as file:
-            content = file.read()
+        return templates.TemplateResponse("user_dashboard.html", {
+            "request": request,
+            "user": user_data,
+            "stats": stats
+        })
 
-        content = (
-            content.replace("{{ user.login_id }}", user_data["login_id"])
-                   .replace("{{ user.bot_token }}", user_data["bot_token"])
-                   .replace("{{ user.strategy }}", user_data["strategy"])
-                   .replace("{{ user.trading_type }}", stats["trading_type"])
-                   .replace("{{ user.risk_percent }}", stats["risk_percent"])
-                   .replace("{{ stats.total_trades }}", str(stats["total_trades"]))
-                   .replace("{{ stats.total_wins }}", str(stats["total_wins"]))
-                   .replace("{{ stats.total_losses }}", str(stats["total_losses"]))
-                   .replace("{{ stats.win_rate }}", str(stats["win_rate"]))
-        )
-        return HTMLResponse(content=content)
     except Exception as e:
         return HTMLResponse(f"<h2>Error loading dashboard: {str(e)}</h2>", status_code=500)
 
