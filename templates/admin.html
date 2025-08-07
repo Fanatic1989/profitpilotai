@@ -63,6 +63,16 @@
       gap: 6px;
       justify-content: center;
     }
+    label.checkbox-label {
+      display: inline-block;
+      margin-left: 8px;
+      font-size: 0.9rem;
+      color: white;
+    }
+    input[type="checkbox"] {
+      transform: scale(1.2);
+      margin-right: 6px;
+    }
   </style>
 </head>
 <body>
@@ -87,6 +97,13 @@
       </select>
       <input type="number" name="risk_percent" placeholder="Risk %" min="1" max="5" required />
       <input type="password" name="password" placeholder="Admin Password" required />
+      
+      <!-- ✅ Lifetime checkbox -->
+      <label class="checkbox-label">
+        <input type="checkbox" name="lifetime" value="true">
+        Lifetime
+      </label>
+
       <button type="submit">Add</button>
     </form>
   </div>
