@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% if request.session.get('admin_logged_in') %}Admin Dashboard{% else %}Admin Login{% endif %}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <!-- Display Admin Login Form -->
+    {% if not request.session.get('admin_logged_in') %}
+      <form method="post" action="/admin">
+        <h1>Login</h1>
+        <input type="text" name="login_id" placeholder="Login ID" required />
+        <input type="password" name="password" placeholder="Admin Password" required />
+        <button type="submit">Submit</button>
+      </form>
+
+      <!-- Display error message if login fails -->
+      {% if error %}
+        <p style="color: red;">{{ error }}</p>
+      {% endif %}
+
+    <!-- Display Admin Dashboard -->
+    {% else %}
+      <h1>Welcome, Admin 👑</h1>
+      <p>You are logged in to the admin dashboard.</p>
+
+      <h2>📊 Admin Dashboard</h2>
+
+      <!-- Display All User Submissions -->
+      <h3>All User Submissions</h3>
+      {% if users %}
+        <ul>
+          {% for user in users %}
+            <li>
+              <strong>{{ user.login_id }}</strong> — {{ user.strategy }} — {{ user.bot_token }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No users yet.</p>
+      {% endif %}
+
+      <!-- Logout Button -->
+      <a href="/logout" class="btn">Logout</a>
+    {% endif %}
+  </div>
+</body>
+</html>
