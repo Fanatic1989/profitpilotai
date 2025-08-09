@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -52,7 +52,7 @@ async def read_root(request: Request):
 
 @app.head("/")
 async def head_root():
-    return HTMLResponse(status_code=200)
+    return Response(status_code=200)
 
 
 @app.post("/submit", response_class=HTMLResponse)
@@ -155,6 +155,56 @@ async def delete_user(request: Request, login_id: str):
         return HTMLResponse(f"<h2>Error deleting user: {str(e)}</h2>", status_code=500)
 
 
+@app.get("/admin/edit-user/{login_id}", response_class=HTMLResponse)
+async def edit_user(request: Request, login_id: str):
+    if not request.session.get("admin_logged_in"):
+        return RedirectResponse("/admin", status_code=303)
+
+    try:
+        # Fetch the user data from Supabase
+        result = supabase.table("user_settings").select("*").eq("login_id", login_id).single().execute()
+        user = result.data if hasattr(result, 'data') else None
+
+        if not user:
+            return HTMLResponse("<h2>User not found</h2>", status_code=404)
+
+        # Render the edit form template
+        return templates.TemplateResponse(
+            "edit_user.html",
+            {"request": request, "user": user}
+        )
+
+    except Exception as e:
+        return HTMLResponse(f"<h2>Error loading edit page: {str(e)}</h2>", status_code=500)
+
+
+@app.post("/admin/update-user/{login_id}", response_class=HTMLResponse)
+async def update_user(
+    request: Request,
+    login_id: str,
+    bot_token: str = Form(...),
+    strategy: str = Form(...),
+    trading_type: str = Form(...),
+    risk_percent: int = Form(...)
+):
+    if not request.session.get("admin_logged_in"):
+        return RedirectResponse("/admin", status_code=303)
+
+    try:
+        # Update the user data in Supabase
+        supabase.table("user_settings").update({
+            "bot_token": bot_token,
+            "strategy": strategy,
+            "trading_type": trading_type,
+            "risk_percent": risk_percent
+        }).eq("login_id", login_id).execute()
+
+        return RedirectResponse("/admin/dashboard", status_code=303)
+
+    except Exception as e:
+        return HTMLResponse(f"<h2>Error updating user: {str(e)}</h2>", status_code=500)
+
+
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     user_data = request.session.get("user")
@@ -216,7 +266,6 @@ async def update_settings(
         user_data["trading_type"] = method
         user_data["risk_percent"] = risk
         request.session["user"] = user_data
-
         return RedirectResponse("/dashboard", status_code=303)
 
     except Exception as e:
