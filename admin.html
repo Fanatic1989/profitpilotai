@@ -87,6 +87,9 @@
       </select>
       <input type="number" name="risk_percent" placeholder="Risk %" min="1" max="5" required />
       <input type="password" name="password" placeholder="Admin Password" required />
+      <label>
+        <input type="checkbox" name="lifetime" value="true" /> Lifetime
+      </label>
       <button type="submit">Add</button>
     </form>
   </div>
@@ -131,7 +134,7 @@
           <!-- Lifetime toggle -->
           <td>
             <form method="post" action="/admin/toggle-lifetime/{{ user.login_id }}">
-              <button style="background-color: {{ 'green' if user.lifetime else 'red' }}; color: white;">
+              <button type="submit" style="background-color: {{ 'green' if user.lifetime else 'red' }}; color: white;">
                 {{ '✅' if user.lifetime else '❌' }}
               </button>
             </form>
@@ -140,7 +143,7 @@
           <!-- Bot status toggle -->
           <td>
             <form method="post" action="/admin/toggle-bot/{{ user.login_id }}">
-              <button style="background-color: {{ 'green' if user.bot_status == 'active' else 'gray' }}; color: white;">
+              <button type="submit" style="background-color: {{ 'green' if user.bot_status == 'active' else 'gray' }}; color: white;">
                 {{ user.bot_status if user.bot_status else 'inactive' }}
               </button>
             </form>
