@@ -1,11 +1,11 @@
 import os
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from supabase import create_client, Client
-from fastapi.templating import Jinja2Templates
 
 # Load .env config
 load_dotenv()
@@ -20,8 +20,8 @@ app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "supersecret"))
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# === Template Setup ===
-templates = Jinja2Templates(directory="templates")  # Ensure templates are in a "templates" folder
+# Initialize Jinja2Templates
+templates = Jinja2Templates(directory="templates")
 
 # === ENV Vars ===
 TELEGRAM_LINK = os.getenv("TELEGRAM_LINK")
@@ -29,25 +29,31 @@ DISCORD_LINK = os.getenv("DISCORD_LINK")
 ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
+
 @app.on_event("startup")
 async def startup():
-    pass
+    print("Application started successfully!")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     try:
-        # Use template to render index.html with variables
-        return templates.TemplateResponse("index.html", {
-            "request": request,
-            "telegram_link": TELEGRAM_LINK or "#",
-            "discord_link": DISCORD_LINK or "#"
-        })
-    except Exception:
-        return HTMLResponse("<h1>Error: index.html not found or error occurred</h1>", status_code=404)
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                "telegram_link": TELEGRAM_LINK or "#",
+                "discord_link": DISCORD_LINK or "#"
+            }
+        )
+    except Exception as e:
+        return HTMLResponse(f"<h1>Error loading index.html: {str(e)}</h1>", status_code=500)
+
 
 @app.head("/")
 async def head_root():
-    return Response(status_code=200)
+    return HTMLResponse(status_code=200)
+
 
 @app.post("/submit", response_class=HTMLResponse)
 async def submit(
@@ -89,18 +95,19 @@ async def submit(
             "trading_type": trading_type,
             "risk_percent": risk_percent
         }
-
         return RedirectResponse("/dashboard", status_code=303)
 
     except Exception as e:
         return HTMLResponse(f"<h2>Server Error: {str(e)}</h2>", status_code=500)
 
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_login(request: Request):
     try:
-        return templates.TemplateResponse("admin_login.html", {"request": request, "error": ""})
-    except Exception:
-        return HTMLResponse("<h1>Error: admin_login.html not found</h1>", status_code=404)
+        return templates.TemplateResponse("admin_login.html", {"request": request})
+    except Exception as e:
+        return HTMLResponse(f"<h1>Error loading admin_login.html: {str(e)}</h1>", status_code=500)
+
 
 @app.post("/admin", response_class=HTMLResponse)
 async def admin_auth(request: Request, login_id: str = Form(...), password: str = Form(...)):
@@ -109,12 +116,13 @@ async def admin_auth(request: Request, login_id: str = Form(...), password: str 
         return RedirectResponse("/admin/dashboard", status_code=303)
 
     try:
-        return templates.TemplateResponse("admin_login.html", {
-            "request": request,
-            "error": "Invalid login credentials. Please try again."
-        })
-    except Exception:
-        return HTMLResponse("<h1>Error: admin_login.html not found</h1>", status_code=404)
+        return templates.TemplateResponse(
+            "admin_login.html",
+            {"request": request, "error": "Invalid login credentials. Please try again."}
+        )
+    except Exception as e:
+        return HTMLResponse(f"<h1>Error loading admin_login.html: {str(e)}</h1>", status_code=500)
+
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request):
@@ -124,19 +132,28 @@ async def admin_dashboard(request: Request):
     try:
         result = supabase.table("user_settings").select("*").execute()
         users = result.data if hasattr(result, 'data') else []
-        return templates.TemplateResponse("admin.html", {"request": request, "users": users})
+
+        return templates.TemplateResponse(
+            "admin.html",
+            {"request": request, "users": users}
+        )
+
     except Exception as e:
         return HTMLResponse(f"<h2>Error loading admin dashboard: {str(e)}</h2>", status_code=500)
+
 
 @app.post("/admin/delete-user/{login_id}", response_class=HTMLResponse)
 async def delete_user(request: Request, login_id: str):
     if not request.session.get("admin_logged_in"):
         return RedirectResponse("/admin", status_code=303)
+
     try:
         supabase.table("user_settings").delete().eq("login_id", login_id).execute()
         return RedirectResponse("/admin/dashboard", status_code=303)
+
     except Exception as e:
         return HTMLResponse(f"<h2>Error deleting user: {str(e)}</h2>", status_code=500)
+
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
@@ -155,7 +172,6 @@ async def dashboard(request: Request):
             raise Exception("No matching user found in database.")
 
         row = result.data[0]
-
         stats = {
             "trading_type": row.get("trading_type", ""),
             "risk_percent": str(row.get("risk_percent", "")),
@@ -165,14 +181,18 @@ async def dashboard(request: Request):
             "win_rate": row.get("win_rate", 0),
         }
 
-        return templates.TemplateResponse("user_dashboard.html", {
-            "request": request,
-            "user": user_data,
-            "stats": stats
-        })
+        return templates.TemplateResponse(
+            "user_dashboard.html",
+            {
+                "request": request,
+                "user": user_data,
+                "stats": stats
+            }
+        )
 
     except Exception as e:
         return HTMLResponse(f"<h2>Error loading dashboard: {str(e)}</h2>", status_code=500)
+
 
 @app.post("/update-settings", response_class=HTMLResponse)
 async def update_settings(
@@ -202,27 +222,43 @@ async def update_settings(
     except Exception as e:
         return HTMLResponse(f"<h2>Error updating settings: {str(e)}</h2>", status_code=500)
 
+
 @app.get("/logout")
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/", status_code=303)
 
+
 # === NEW ROUTES ===
+@app.post("/admin/toggle-lifetime/{login_id}", response_class=JSONResponse)
+async def toggle_lifetime(request: Request, login_id: str):
+    if not request.session.get("admin_logged_in"):
+        return JSONResponse({"success": False, "message": "Unauthorized"}, status_code=401)
 
-@app.post("/admin/toggle-lifetime")
-async def toggle_lifetime(request: Request):
-    data = await request.json()
-    login_id = data["login_id"]
-    current = data["current"]
-    new_status = not current
-    supabase.table("user_settings").update({"lifetime": new_status}).eq("login_id", login_id).execute()
-    return JSONResponse(content={"success": True})
+    try:
+        result = supabase.table("user_settings").select("lifetime").eq("login_id", login_id).single().execute()
+        current_status = result.data.get("lifetime", False)
+        new_status = not current_status
 
-@app.post("/admin/toggle-bot-status")
-async def toggle_bot_status(request: Request):
-    data = await request.json()
-    login_id = data["login_id"]
-    current = data["current"]
-    new_status = "paused" if current == "active" else "active"
-    supabase.table("user_settings").update({"bot_status": new_status}).eq("login_id", login_id).execute()
-    return JSONResponse(content={"success": True})
+        supabase.table("user_settings").update({"lifetime": new_status}).eq("login_id", login_id).execute()
+        return JSONResponse({"success": True, "new_status": new_status})
+
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=500)
+
+
+@app.post("/admin/toggle-bot/{login_id}", response_class=JSONResponse)
+async def toggle_bot(request: Request, login_id: str):
+    if not request.session.get("admin_logged_in"):
+        return JSONResponse({"success": False, "message": "Unauthorized"}, status_code=401)
+
+    try:
+        result = supabase.table("user_settings").select("bot_status").eq("login_id", login_id).single().execute()
+        current_status = result.data.get("bot_status", "inactive")
+        new_status = "paused" if current_status == "active" else "active"
+
+        supabase.table("user_settings").update({"bot_status": new_status}).eq("login_id", login_id).execute()
+        return JSONResponse({"success": True, "new_status": new_status})
+
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=500)
