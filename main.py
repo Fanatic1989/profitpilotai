@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
@@ -179,19 +179,32 @@ async def logout(request: Request):
     return RedirectResponse("/", status_code=303)
 
 
-# === FIXED: Match HTML Form Actions ===
+# === FIXED Lifetime toggle ===
 @app.post("/admin/toggle-lifetime/{login_id}")
-async def toggle_lifetime(login_id: str):
-    user = supabase.table("user_settings").select("lifetime").eq("login_id", login_id).single().execute().data
-    if user:
+async def toggle_lifetime(request: Request, login_id: str):
+    if not request.session.get("admin_logged_in"):
+        return RedirectResponse("/admin", status_code=303)
+
+    result = supabase.table("user_settings").select("lifetime").eq("login_id", login_id).single().execute()
+    user = result.data if hasattr(result, 'data') else None
+
+    if user is not None:
         supabase.table("user_settings").update({"lifetime": not user["lifetime"]}).eq("login_id", login_id).execute()
+
     return RedirectResponse("/admin/dashboard", status_code=303)
 
 
+# === FIXED Bot toggle ===
 @app.post("/admin/toggle-bot/{login_id}")
-async def toggle_bot(login_id: str):
-    user = supabase.table("user_settings").select("bot_status").eq("login_id", login_id).single().execute().data
-    if user:
+async def toggle_bot(request: Request, login_id: str):
+    if not request.session.get("admin_logged_in"):
+        return RedirectResponse("/admin", status_code=303)
+
+    result = supabase.table("user_settings").select("bot_status").eq("login_id", login_id).single().execute()
+    user = result.data if hasattr(result, 'data') else None
+
+    if user is not None:
         new_status = "paused" if user["bot_status"] == "active" else "active"
         supabase.table("user_settings").update({"bot_status": new_status}).eq("login_id", login_id).execute()
+
     return RedirectResponse("/admin/dashboard", status_code=303)
