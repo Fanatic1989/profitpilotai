@@ -50,7 +50,7 @@ async def read_root(request: Request):
         return HTMLResponse(f"<h1>Error loading index.html: {str(e)}</h1>", status_code=500)
 
 
-@app.head("/")
+@app.head("/", response_class=Response)
 async def head_root():
     return Response(status_code=200)
 
@@ -61,8 +61,8 @@ async def submit(
     bot_token: str = Form(...),
     login_id: str = Form(...),
     strategy: str = Form(...),
-    trading_type: str = Form(...),
-    risk_percent: int = Form(...),
+    trading_type: str = Form("manual"),  # Default value
+    risk_percent: int = Form(1),        # Default value
     password: str = Form(...)
 ):
     if password != ADMIN_PASSWORD:
