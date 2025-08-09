@@ -29,6 +29,11 @@ DISCORD_LINK = os.getenv("DISCORD_LINK")
 ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
+# === HEAD request for uptime monitoring ===
+@app.head("/")
+async def head_root():
+    return {}  # Respond 200 OK, no body
+
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -82,6 +87,46 @@ async def submit(
         }
 
         return RedirectResponse("/dashboard", status_code=303)
+
+    except Exception as e:
+        return HTMLResponse(f"<h2>Server Error: {str(e)}</h2>", status_code=500)
+
+
+# === NEW: Admin Add User route ===
+@app.post("/admin/add-user", response_class=HTMLResponse)
+async def add_user(
+    request: Request,
+    login_id: str = Form(...),
+    bot_token: str = Form(...),
+    strategy: str = Form(...),
+    trading_type: str = Form(...),
+    risk_percent: int = Form(...),
+    password: str = Form(...),
+    lifetime: str = Form(None)
+):
+    if password != ADMIN_PASSWORD:
+        return HTMLResponse("<h2>Access Denied ❌ - Invalid Password</h2>", status_code=401)
+
+    if not (1 <= risk_percent <= 5):
+        return HTMLResponse("<h2>Error: Risk % must be between 1 and 5</h2>", status_code=400)
+
+    try:
+        supabase.table("user_settings").upsert({
+            "login_id": login_id,
+            "bot_token": bot_token,
+            "strategy": strategy,
+            "trading_type": trading_type,
+            "risk_percent": risk_percent,
+            "total_trades": 0,
+            "total_wins": 0,
+            "total_losses": 0,
+            "win_rate": 0,
+            "bot_status": "inactive",
+            "lifetime": bool(lifetime)
+        }).execute()
+
+        # Stay on admin dashboard after adding
+        return RedirectResponse(url="/admin/dashboard", status_code=303)
 
     except Exception as e:
         return HTMLResponse(f"<h2>Server Error: {str(e)}</h2>", status_code=500)
