@@ -29,11 +29,9 @@ DISCORD_LINK = os.getenv("DISCORD_LINK")
 ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
-
 @app.on_event("startup")
 async def startup():
     print("Application started successfully!")
-
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -49,11 +47,9 @@ async def read_root(request: Request):
     except Exception as e:
         return HTMLResponse(f"<h1>Error loading index.html: {str(e)}</h1>", status_code=500)
 
-
 @app.head("/", response_class=Response)
 async def head_root():
     return Response(status_code=200)
-
 
 @app.post("/submit", response_class=HTMLResponse)
 async def submit(
@@ -72,10 +68,12 @@ async def submit(
         return HTMLResponse("<h2>Error: Risk % must be between 1 and 5</h2>", status_code=400)
 
     try:
+        normalized_strategy = strategy.lower()  # Normalize strategy to lowercase
+
         response = supabase.table("user_settings").upsert({
             "login_id": login_id,
             "bot_token": bot_token,
-            "strategy": strategy,
+            "strategy": normalized_strategy,
             "trading_type": trading_type,
             "risk_percent": risk_percent,
             "total_trades": 0,
@@ -91,7 +89,7 @@ async def submit(
         request.session["user"] = {
             "login_id": login_id,
             "bot_token": bot_token,
-            "strategy": strategy,
+            "strategy": normalized_strategy,
             "trading_type": trading_type,
             "risk_percent": risk_percent
         }
@@ -100,14 +98,12 @@ async def submit(
     except Exception as e:
         return HTMLResponse(f"<h2>Server Error: {str(e)}</h2>", status_code=500)
 
-
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_login(request: Request):
     try:
         return templates.TemplateResponse("admin_login.html", {"request": request})
     except Exception as e:
         return HTMLResponse(f"<h1>Error loading admin_login.html: {str(e)}</h1>", status_code=500)
-
 
 @app.post("/admin", response_class=HTMLResponse)
 async def admin_auth(request: Request, login_id: str = Form(...), password: str = Form(...)):
@@ -122,7 +118,6 @@ async def admin_auth(request: Request, login_id: str = Form(...), password: str 
         )
     except Exception as e:
         return HTMLResponse(f"<h1>Error loading admin_login.html: {str(e)}</h1>", status_code=500)
-
 
 @app.get("/admin/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request):
@@ -141,7 +136,6 @@ async def admin_dashboard(request: Request):
     except Exception as e:
         return HTMLResponse(f"<h2>Error loading admin dashboard: {str(e)}</h2>", status_code=500)
 
-
 @app.post("/admin/delete-user/{login_id}", response_class=HTMLResponse)
 async def delete_user(request: Request, login_id: str):
     if not request.session.get("admin_logged_in"):
@@ -153,57 +147,6 @@ async def delete_user(request: Request, login_id: str):
 
     except Exception as e:
         return HTMLResponse(f"<h2>Error deleting user: {str(e)}</h2>", status_code=500)
-
-
-@app.get("/admin/edit-user/{login_id}", response_class=HTMLResponse)
-async def edit_user(request: Request, login_id: str):
-    if not request.session.get("admin_logged_in"):
-        return RedirectResponse("/admin", status_code=303)
-
-    try:
-        # Fetch the user data from Supabase
-        result = supabase.table("user_settings").select("*").eq("login_id", login_id).single().execute()
-        user = result.data if hasattr(result, 'data') else None
-
-        if not user:
-            return HTMLResponse("<h2>User not found</h2>", status_code=404)
-
-        # Render the edit form template
-        return templates.TemplateResponse(
-            "edit_user.html",
-            {"request": request, "user": user}
-        )
-
-    except Exception as e:
-        return HTMLResponse(f"<h2>Error loading edit page: {str(e)}</h2>", status_code=500)
-
-
-@app.post("/admin/update-user/{login_id}", response_class=HTMLResponse)
-async def update_user(
-    request: Request,
-    login_id: str,
-    bot_token: str = Form(...),
-    strategy: str = Form(...),
-    trading_type: str = Form(...),
-    risk_percent: int = Form(...)
-):
-    if not request.session.get("admin_logged_in"):
-        return RedirectResponse("/admin", status_code=303)
-
-    try:
-        # Update the user data in Supabase
-        supabase.table("user_settings").update({
-            "bot_token": bot_token,
-            "strategy": strategy,
-            "trading_type": trading_type,
-            "risk_percent": risk_percent
-        }).eq("login_id", login_id).execute()
-
-        return RedirectResponse("/admin/dashboard", status_code=303)
-
-    except Exception as e:
-        return HTMLResponse(f"<h2>Error updating user: {str(e)}</h2>", status_code=500)
-
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
@@ -243,7 +186,6 @@ async def dashboard(request: Request):
     except Exception as e:
         return HTMLResponse(f"<h2>Error loading dashboard: {str(e)}</h2>", status_code=500)
 
-
 @app.post("/update-settings", response_class=HTMLResponse)
 async def update_settings(
     request: Request,
@@ -256,13 +198,15 @@ async def update_settings(
         return RedirectResponse("/", status_code=303)
 
     try:
+        normalized_strategy = strategy.lower()  # Normalize strategy to lowercase
+
         supabase.table("user_settings").update({
             "trading_type": method.lower(),
-            "strategy": strategy.lower(),
+            "strategy": normalized_strategy,
             "risk_percent": risk
         }).eq("login_id", user_data["login_id"]).execute()
 
-        user_data["strategy"] = strategy
+        user_data["strategy"] = normalized_strategy
         user_data["trading_type"] = method
         user_data["risk_percent"] = risk
         request.session["user"] = user_data
@@ -271,12 +215,10 @@ async def update_settings(
     except Exception as e:
         return HTMLResponse(f"<h2>Error updating settings: {str(e)}</h2>", status_code=500)
 
-
 @app.get("/logout")
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/", status_code=303)
-
 
 # === NEW ROUTES ===
 @app.post("/admin/toggle-lifetime/{login_id}", response_class=JSONResponse)
@@ -294,7 +236,6 @@ async def toggle_lifetime(request: Request, login_id: str):
 
     except Exception as e:
         return JSONResponse({"success": False, "message": str(e)}, status_code=500)
-
 
 @app.post("/admin/toggle-bot/{login_id}", response_class=JSONResponse)
 async def toggle_bot(request: Request, login_id: str):
