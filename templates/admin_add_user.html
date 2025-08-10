@@ -1,0 +1,42 @@
+<!-- templates/admin_add_user.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New User</title>
+    <link rel="stylesheet" href="/static/style.css"> <!-- Optional: Link to your CSS file -->
+</head>
+<body>
+    <h1>Add New User</h1>
+    <form method="post" action="/admin/add-user">
+        <label for="login_id">Login ID:</label><br>
+        <input type="text" id="login_id" name="login_id" required><br><br>
+
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password" required><br><br>
+
+        <label for="bot_token">Bot Token:</label><br>
+        <input type="text" id="bot_token" name="bot_token" required><br><br>
+
+        <label for="strategy">Strategy:</label><br>
+        <select id="strategy" name="strategy" required>
+            <option value="scalping">Scalping</option>
+            <option value="day trading">Day Trading</option>
+            <option value="swing trading">Swing Trading</option>
+        </select><br><br>
+
+        <label for="trading_type">Trading Type:</label><br>
+        <select id="trading_type" name="trading_type" required>
+            <option value="forex">Forex</option>
+            <option value="binary">Binary</option>
+        </select><br><br>
+
+        <label for="risk_percent">Risk Percent (1-5):</label><br>
+        <input type="number" id="risk_percent" name="risk_percent" min="1" max="5" required><br><br>
+
+        <button type="submit">Add User</button>
+    </form>
+    <p><a href="/admin/dashboard">Back to Admin Dashboard</a></p>
+</body>
+</html>
