@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -58,12 +59,8 @@ async def submit(
     if not (1 <= risk_percent <= 5):
         return HTMLResponse("<h2>Error: Risk % must be between 1 and 5</h2>", status_code=400)
     try:
-        existing = supabase.table("user_settings").select("login_id").eq("login_id", login_id).execute()
-        if existing.data:
-            return HTMLResponse("<h2>Error: Login ID already exists</h2>", status_code=400)
-        supabase.table("user_settings").insert({
+        response = supabase.table("user_settings").upsert({
             "login_id": login_id,
-            "password": password,
             "bot_token": bot_token,
             "strategy": strategy,
             "trading_type": trading_type,
@@ -71,10 +68,18 @@ async def submit(
             "total_trades": 0,
             "total_wins": 0,
             "total_losses": 0,
-            "win_rate": 0,
             "bot_status": "active",
             "lifetime": False
         }).execute()
+        if request.session.get("admin_logged_in"):
+            return RedirectResponse("/admin/dashboard", status_code=303)
+        request.session["user"] = {
+            "login_id": login_id,
+            "bot_token": bot_token,
+            "strategy": strategy,
+            "trading_type": trading_type,
+            "risk_percent": risk_percent
+        }
         return RedirectResponse("/dashboard", status_code=303)
     except Exception as e:
         return HTMLResponse(f"<h2>Server Error: {str(e)}</h2>", status_code=500)
@@ -146,6 +151,16 @@ async def admin_dashboard(request: Request):
     except Exception as e:
         return HTMLResponse(f"<h2>Error loading admin dashboard: {str(e)}</h2>", status_code=500)
 
+@app.post("/admin/delete-user/{login_id}", response_class=HTMLResponse)
+async def delete_user(request: Request, login_id: str):
+    if not request.session.get("admin_logged_in"):
+        return RedirectResponse("/admin", status_code=303)
+    try:
+        supabase.table("user_settings").delete().eq("login_id", login_id).execute()
+        return RedirectResponse("/admin/dashboard", status_code=303)
+    except Exception as e:
+        return HTMLResponse(f"<h2>Error deleting user: {str(e)}</h2>", status_code=500)
+
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     user_data = request.session.get("user")
@@ -214,6 +229,7 @@ async def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/", status_code=303)
 
+# === NEW ROUTES ===
 @app.post("/admin/toggle-lifetime")
 async def toggle_lifetime(request: Request):
     data = await request.json()
