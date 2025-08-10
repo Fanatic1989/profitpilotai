@@ -309,3 +309,55 @@ async def toggle_bot_status(request: Request):
     new_status = "paused" if current == "active" else "active"
     supabase.table("user_settings").update({"bot_status": new_status}).eq("login_id", login_id).execute()
     return JSONResponse(content={"success": True})
+
+
+# ============================================
+# Admin Add User
+# ============================================
+@app.get("/admin/add-user", response_class=HTMLResponse)
+async def admin_add_user_form(request: Request):
+    if not request.session.get("admin_logged_in"):
+        return RedirectResponse("/admin", status_code=303)
+    try:
+        with open("templates/admin_add_user.html", "r") as file:
+            return HTMLResponse(content=file.read())
+    except FileNotFoundError:
+        return HTMLResponse("<h1>Error: admin_add_user.html not found</h1>", status_code=404)
+
+
+@app.post("/admin/add-user", response_class=HTMLResponse)
+async def admin_add_user(
+    request: Request,
+    login_id: str = Form(...),
+    password: str = Form(...),
+    bot_token: str = Form(...),
+    strategy: str = Form(...),
+    trading_type: str = Form(...),
+    risk_percent: int = Form(...)
+):
+    if not request.session.get("admin_logged_in"):
+        return RedirectResponse("/admin", status_code=303)
+
+    if not (1 <= risk_percent <= 5):
+        return HTMLResponse("<h2>Error: Risk % must be between 1 and 5</h2>", status_code=400)
+
+    existing = supabase.table("user_settings").select("login_id").eq("login_id", login_id).execute()
+    if existing.data:
+        return HTMLResponse("<h2>Error: Login ID already exists</h2>", status_code=400)
+
+    supabase.table("user_settings").insert({
+        "login_id": login_id,
+        "password": password,
+        "bot_token": bot_token,
+        "strategy": strategy,
+        "trading_type": trading_type,
+        "risk_percent": risk_percent,
+        "total_trades": 0,
+        "total_wins": 0,
+        "total_losses": 0,
+        "win_rate": 0,
+        "bot_status": "inactive",
+        "lifetime": False
+    }).execute()
+
+    return RedirectResponse("/admin/dashboard", status_code=303)
