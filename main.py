@@ -35,7 +35,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 async def home(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
-
 @app.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
     # Fetch user from Supabase
@@ -50,28 +49,29 @@ async def login(request: Request, username: str = Form(...), password: str = For
     # Successful login → send to dashboard
     return templates.TemplateResponse("dashboard.html", {"request": request, "user": user})
 
-
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
     # Get all users
     users = supabase.table("user_settings").select("*").execute()
     return templates.TemplateResponse("admin.html", {"request": request, "users": users.data})
 
-
 @app.post("/admin/add-user")
 async def admin_add_user(
-    username: str = Form(...),
-    password: str = Form(...),
+    login_id: str = Form(...),
+    bot_token: str = Form(...),
     strategy: str = Form(...),
     trading_type: str = Form(...),
-    risk_percent: int = Form(...)
+    risk_percent: int = Form(...),
+    password: str = Form(...),  # Can be temp or user-defined
+    lifetime: str = Form(None)  # Checkbox
 ):
     try:
         hashed_password = hash_password(password)
+        lifetime_status = True if lifetime == "true" else False
 
-        # Insert user into Supabase
         supabase.table("user_settings").insert({
-            "login_id": username,
+            "login_id": login_id,
+            "bot_token": bot_token,
             "password": hashed_password,
             "strategy": strategy,
             "trading_type": trading_type,
@@ -79,7 +79,7 @@ async def admin_add_user(
             "total_trades": 0,
             "total_wins": 0,
             "total_losses": 0,
-            "lifetime": False,
+            "lifetime": lifetime_status,
             "bot_status": "inactive"
         }).execute()
 
@@ -88,8 +88,7 @@ async def admin_add_user(
     except Exception as e:
         return {"error": str(e)}
 
-
-@app.post("/change-password")
+@app.post("/user/change-password")
 async def change_password(username: str = Form(...), new_password: str = Form(...)):
     hashed_password = hash_password(new_password)
     supabase.table("user_settings").update({"password": hashed_password}).eq("login_id", username).execute()
