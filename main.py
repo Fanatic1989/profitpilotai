@@ -158,3 +158,9 @@ async def update_user(
     }).eq("login_id", login_id).execute()
 
     return RedirectResponse(url="/admin", status_code=303)
+
+# Delete user (Admin)
+@app.post("/admin/delete-user/{login_id}")
+async def delete_user(login_id: str):
+    supabase.table("user_settings").delete().eq("login_id", login_id).execute()
+    return RedirectResponse(url="/admin", status_code=303)
