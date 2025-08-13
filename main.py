@@ -83,6 +83,7 @@ async def admin_add_user(
 
     return RedirectResponse(url="/admin", status_code=303)
 
+# Change password form
 @app.get("/user/change-password", response_class=HTMLResponse)
 async def change_password_form(request: Request):
     username = request.cookies.get("username")
@@ -90,6 +91,7 @@ async def change_password_form(request: Request):
         return RedirectResponse(url="/")
     return templates.TemplateResponse("change_password.html", {"request": request, "username": username})
 
+# Change password logic
 @app.post("/user/change-password")
 async def change_password(
     request: Request,
@@ -130,3 +132,29 @@ async def change_password(
     response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie("username")
     return response
+
+# Edit user form (Admin)
+@app.get("/admin/edit-user/{login_id}", response_class=HTMLResponse)
+async def edit_user_form(request: Request, login_id: str):
+    res = supabase.table("user_settings").select("*").eq("login_id", login_id).execute()
+    if not res.data:
+        return RedirectResponse(url="/admin")
+    return templates.TemplateResponse("edit_user.html", {"request": request, "user": res.data[0]})
+
+# Update user (Admin)
+@app.post("/admin/update-user/{login_id}")
+async def update_user(
+    login_id: str,
+    bot_token: str = Form(...),
+    strategy: str = Form(...),
+    trading_type: str = Form(...),
+    risk_percent: int = Form(...)
+):
+    supabase.table("user_settings").update({
+        "bot_token": bot_token,
+        "strategy": strategy,
+        "trading_type": trading_type,
+        "risk_percent": risk_percent
+    }).eq("login_id", login_id).execute()
+
+    return RedirectResponse(url="/admin", status_code=303)
