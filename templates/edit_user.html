@@ -9,6 +9,7 @@
 <body>
 <div class="container">
   <h1>Edit User: {{ user.login_id }}</h1>
+
   <form method="post" action="/admin/update-user/{{ user.login_id }}">
     <label for="login_id">Login ID:</label>
     <input type="text" id="login_id" name="login_id" value="{{ user.login_id }}" readonly />
@@ -34,6 +35,9 @@
 
     <button type="submit">Update User</button>
   </form>
+
+  <br>
+  <a href="/admin">Back to Admin Panel</a>
 </div>
 </body>
 </html>
