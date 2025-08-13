@@ -46,8 +46,10 @@ async def login(request: Request, username: str = Form(...), password: str = For
     if not pwd_context.verify(password, user["password"]):
         return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid username or password"})
 
-    # Successful login → send to dashboard
-    return templates.TemplateResponse("dashboard.html", {"request": request, "user": user})
+    # Successful login → set cookie & send to dashboard
+    response = templates.TemplateResponse("dashboard.html", {"request": request, "user": user})
+    response.set_cookie(key="username", value=username, httponly=True, max_age=3600)
+    return response
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
@@ -88,8 +90,56 @@ async def admin_add_user(
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/user/change-password", response_class=HTMLResponse)
+async def change_password_form(request: Request):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse(url="/")
+    return templates.TemplateResponse("change_password.html", {"request": request, "username": username})
+
 @app.post("/user/change-password")
-async def change_password(username: str = Form(...), new_password: str = Form(...)):
+async def change_password(
+    request: Request,
+    old_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...)
+):
+    username = request.cookies.get("username")
+    if not username:
+        return RedirectResponse(url="/")
+
+    # Check if passwords match
+    if new_password != confirm_password:
+        return templates.TemplateResponse("change_password.html", {
+            "request": request,
+            "username": username,
+            "error": "New passwords do not match"
+        })
+
+    # Fetch user
+    res = supabase.table("user_settings").select("*").eq("login_id", username).execute()
+    if not res.data:
+        return templates.TemplateResponse("change_password.html", {
+            "request": request,
+            "username": username,
+            "error": "User not found"
+        })
+
+    user = res.data[0]
+
+    # Verify old password
+    if not pwd_context.verify(old_password, user["password"]):
+        return templates.TemplateResponse("change_password.html", {
+            "request": request,
+            "username": username,
+            "error": "Old password is incorrect"
+        })
+
+    # Update password
     hashed_password = hash_password(new_password)
     supabase.table("user_settings").update({"password": hashed_password}).eq("login_id", username).execute()
-    return {"status": "Password updated successfully"}
+
+    # Force logout
+    response = RedirectResponse(url="/", status_code=303)
+    response.delete_cookie("username")
+    return response
