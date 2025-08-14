@@ -167,6 +167,19 @@ async def delete_user(login_id: str):
     supabase.table("user_settings").delete().eq("login_id", login_id).execute()
     return RedirectResponse(url="/admin", status_code=303)
 
+# Toggle bot status (Admin)
+@app.post("/admin/toggle-bot/{login_id}")
+async def toggle_bot(login_id: str):
+    res = supabase.table("user_settings").select("bot_status").eq("login_id", login_id).execute()
+    if not res.data:
+        return RedirectResponse(url="/admin", status_code=303)
+
+    current_status = res.data[0]["bot_status"]
+    new_status = "active" if current_status != "active" else "inactive"
+
+    supabase.table("user_settings").update({"bot_status": new_status}).eq("login_id", login_id).execute()
+    return RedirectResponse(url="/admin", status_code=303)
+
 # Trading Logic Integration
 @app.get("/trade/{login_id}")
 async def execute_trade(login_id: str):
