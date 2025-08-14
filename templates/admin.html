@@ -133,7 +133,7 @@
 
           <!-- Lifetime toggle -->
           <td>
-            <form method="post" action="/admin/toggle-lifetime/{{ user.login_id }}">
+            <form method="post" action="/admin/toggle-lifetime/{{ user.login_id | urlencode }}">
               <button type="submit" style="background-color: {{ 'green' if user.lifetime else 'red' }}; color: white;">
                 {{ '✅' if user.lifetime else '❌' }}
               </button>
@@ -142,7 +142,7 @@
 
           <!-- Bot status toggle -->
           <td>
-            <form method="post" action="/admin/toggle-bot/{{ user.login_id }}">
+            <form method="post" action="/admin/toggle-bot/{{ user.login_id | urlencode }}">
               <button type="submit" style="background-color: {{ 'green' if user.bot_status == 'active' else 'gray' }}; color: white;">
                 {{ user.bot_status if user.bot_status else 'inactive' }}
               </button>
@@ -151,10 +151,13 @@
 
           <!-- Edit/Delete -->
           <td class="row-actions">
-            <a href="/admin/edit-user/{{ user.login_id }}">Edit</a>
+            <a href="/admin/edit-user/{{ user.login_id | urlencode }}">Edit</a>
             <!-- Delete Form -->
-            <form method="post" action="/admin/delete-user/{{ user.login_id }}" class="inline-form">
-              <button onclick="return confirm('Delete this user?')">Delete</button>
+            <form method="post" action="/admin/delete-user/{{ user.login_id | urlencode }}" class="inline-form">
+              <input type="hidden" name="confirm" value="true" />
+              <button onclick="return confirm('Are you sure you want to delete user {{ user.login_id }}? This cannot be undone.')">
+                Delete
+              </button>
             </form>
           </td>
         </tr>
