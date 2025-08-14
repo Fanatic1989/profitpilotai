@@ -21,6 +21,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
