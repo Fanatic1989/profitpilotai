@@ -129,6 +129,29 @@ def compute_signal(df: pd.DataFrame, cfg: BotConfig) -> Optional[Side]:
     return None
 
 
+def fetch_market_data(symbol: str, timeframe: str = "1h", limit: int = 100) -> pd.DataFrame:
+    """
+    Fetch market data for a given symbol.
+    Replace this with actual API calls to your exchange/broker.
+    """
+    # Simulated data for demonstration purposes
+    timestamps = [pd.Timestamp.now() - pd.Timedelta(minutes=i) for i in range(limit)]
+    opens = np.random.uniform(100, 110, limit)
+    highs = np.random.uniform(110, 120, limit)
+    lows = np.random.uniform(90, 100, limit)
+    closes = np.random.uniform(100, 110, limit)
+    volumes = np.random.uniform(1000, 2000, limit)
+
+    return pd.DataFrame({
+        "timestamp": timestamps,
+        "open": opens,
+        "high": highs,
+        "low": lows,
+        "close": closes,
+        "volume": volumes
+    })
+
+
 def place_order(user_id: str, side: Side, entry_price: float, sl: float, tp: float):
     """
     Place an order via your broker/exchange API.
