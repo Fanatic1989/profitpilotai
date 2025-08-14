@@ -5,6 +5,7 @@ from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
 from supabase import create_client
 import os
+from bot.engine import compute_signal, fetch_market_data, place_order
 
 app = FastAPI()
 
@@ -164,3 +165,27 @@ async def update_user(
 async def delete_user(login_id: str):
     supabase.table("user_settings").delete().eq("login_id", login_id).execute()
     return RedirectResponse(url="/admin", status_code=303)
+
+# Trading Logic Integration
+@app.get("/trade/{login_id}")
+async def execute_trade(login_id: str):
+    """
+    Execute trading logic for a user.
+    """
+    # Fetch user settings
+    user = supabase.table("user_settings").select("*").eq("login_id", login_id).execute().data[0]
+
+    # Fetch market data
+    symbol = user.get("symbol", "BTCUSD")  # Default to BTCUSD if no symbol is specified
+    df = fetch_market_data(symbol=symbol)
+
+    # Compute trading signal
+    signal = compute_signal(df)
+
+    # Place order based on signal
+    if signal == "buy":
+        place_order(user_id=login_id, side="buy", quantity=user["risk_percent"], price=df.iloc[-1]["close"])
+    elif signal == "sell":
+        place_order(user_id=login_id, side="sell", quantity=user["risk_percent"], price=df.iloc[-1]["close"])
+
+    return {"signal": signal}
