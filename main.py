@@ -62,6 +62,28 @@ DERIV_PAIRS = [
     ]},
 ]
 
+# Map user-friendly pairs to Deriv API symbols
+DERIV_SYMBOL_MAP = {
+    "AUD/USD": "frxAUDUSD",
+    "EUR/USD": "frxEURUSD",
+    "GBP/USD": "frxGBPUSD",
+    "USD/JPY": "frxUSDJPY",
+    "USD/CHF": "frxUSDCHF",
+    "USD/CAD": "frxUSDCAD",
+    "AUD/JPY": "frxAUDJPY",
+    "EUR/GBP": "frxEURGBP",
+    "EUR/JPY": "frxEURJPY",
+    "Volatility 10 Index": "volatility_10_index",
+    "Volatility 25 Index": "volatility_25_index",
+    "Volatility 50 Index": "volatility_50_index",
+    "Volatility 75 Index": "volatility_75_index",
+    "Volatility 100 Index": "volatility_100_index",
+    "Crash 1000 Index": "crash_1000_index",
+    "Crash 500 Index": "crash_500_index",
+    "Boom 1000 Index": "boom_1000_index",
+    "Boom 500 Index": "boom_500_index"
+}
+
 def all_pairs_flat() -> List[str]:
     return [item for group in DERIV_PAIRS for item in group["items"]]
 
@@ -126,6 +148,10 @@ async def get_deriv_pairs() -> List[str]:
     except Exception as e:
         print(f"WebSocket error fetching pairs: {e}")
     return []  # fallback to static list
+
+# Helper function to map user-friendly pairs to Deriv API symbols
+def map_to_deriv_symbols(pairs: List[str]) -> List[str]:
+    return [DERIV_SYMBOL_MAP.get(pair, pair) for pair in pairs]
 
 # --------------------------
 # Routes
@@ -334,7 +360,9 @@ async def toggle_lifetime(login_id: str):
 @app.get("/price/{symbol}")
 async def price(symbol: str):
     try:
-        sym = unquote(symbol)
+        # Map user-friendly symbol to Deriv API symbol
+        deriv_symbol = DERIV_SYMBOL_MAP.get(symbol, symbol)
+        sym = unquote(deriv_symbol)
         df = fetch_market_data(symbol=sym)
         price_val = float(df.iloc[-1]["close"])
         return {"symbol": sym, "price": price_val}
@@ -377,7 +405,9 @@ async def execute_trade(login_id: str):
 
     user = res.data[0]
     pairs = deserialize_pairs(user.get("selected_pairs"))
-    symbol = pairs[0] if pairs else user.get("symbol", "BTCUSD")
+    # Map user-friendly pairs to Deriv API symbols
+    deriv_pairs = map_to_deriv_symbols(pairs)
+    symbol = deriv_pairs[0] if deriv_pairs else user.get("symbol", "BTCUSD")
 
     try:
         df = fetch_market_data(symbol=symbol)
