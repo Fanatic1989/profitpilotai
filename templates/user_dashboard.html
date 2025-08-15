@@ -12,51 +12,31 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      color: #fff;
     }
-
     .dashboard-container {
       max-width: 800px;
-      margin: 80px auto;
+      margin: 60px auto;
       padding: 30px;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.85);
+      color: #ffffff;
       border-radius: 12px;
       box-shadow: 0 0 25px rgba(0, 0, 0, 0.7);
     }
-
-    h1 {
+    .dashboard-container h1 {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 25px;
       color: #00ffff;
     }
-
-    .stats {
-      display: flex;
-      justify-content: space-between;
-      text-align: center;
-      margin: 20px 0;
+    .info-section p {
+      margin: 6px 0;
+      font-size: 15px;
     }
-    .stats div {
-      flex: 1;
-      margin: 0 5px;
-      background: rgba(255, 255, 255, 0.1);
-      padding: 12px;
-      border-radius: 8px;
-    }
-    .stats span {
-      display: block;
-      font-size: 22px;
-      font-weight: bold;
-      color: #00ffcc;
-    }
-
     .settings-form label {
       display: block;
       margin: 12px 0 6px;
       color: #ffcc00;
     }
-
-    select, button, input {
+    .settings-form select, .settings-form input {
       width: 100%;
       padding: 8px;
       border-radius: 4px;
@@ -64,24 +44,52 @@
       background-color: #222;
       color: #fff;
     }
-
-    button {
+    .tooltip {
+      display: inline-block;
+      position: relative;
+      cursor: pointer;
+      color: #00ffff;
+      margin-left: 5px;
+    }
+    .tooltip:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 12px;
+      top: -5px;
+      left: 105%;
+      white-space: pre-wrap;
+      z-index: 10;
+      width: 200px;
+    }
+    .settings-form button {
       margin-top: 20px;
+      width: 100%;
       background-color: #00cc66;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      color: white;
       font-weight: bold;
       cursor: pointer;
       transition: 0.3s;
     }
-
-    button:hover {
+    .settings-form button:hover {
       background-color: #00994d;
     }
-
+    .trade-summary {
+      margin-top: 20px;
+      background: rgba(255,255,255,0.05);
+      padding: 10px;
+      border-radius: 6px;
+    }
     .logout-button {
       text-align: center;
       margin-top: 30px;
     }
-
     .logout-button a {
       background-color: #ff4444;
       color: white;
@@ -90,38 +98,8 @@
       border-radius: 6px;
       transition: 0.3s;
     }
-
     .logout-button a:hover {
       background-color: #cc0000;
-    }
-
-    .tooltip {
-      position: relative;
-      cursor: help;
-      border-bottom: 1px dotted #fff;
-    }
-    .tooltip:hover::after {
-      content: attr(data-tooltip);
-      position: absolute;
-      background: rgba(0,0,0,0.8);
-      color: #fff;
-      padding: 6px;
-      border-radius: 6px;
-      bottom: 125%;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 220px;
-      text-align: center;
-      font-size: 12px;
-    }
-
-    @media(max-width: 600px) {
-      .stats {
-        flex-direction: column;
-      }
-      .stats div {
-        margin: 5px 0;
-      }
     }
   </style>
 </head>
@@ -129,20 +107,11 @@
   <div class="dashboard-container">
     <h1>📊 User Dashboard</h1>
 
-    <!-- User Info -->
-    <div>
+    <div class="info-section">
       <p><strong>Login ID:</strong> {{ user.login_id }}</p>
       <p><strong>Bot Token:</strong> {{ user.bot_token }}</p>
     </div>
 
-    <!-- Stats -->
-    <div class="stats">
-      <div><span>{{ total_wins }}</span>Wins</div>
-      <div><span>{{ total_losses }}</span>Losses</div>
-      <div><span>{{ total_draws }}</span>Draws</div>
-    </div>
-
-    <!-- Settings Form -->
     <form method="post" action="/update-settings" class="settings-form">
       <label for="method">Trading Method</label>
       <select name="method" id="method">
@@ -150,11 +119,13 @@
         <option value="Binary">Binary</option>
       </select>
 
-      <label for="strategy">Strategy</label>
+      <label for="strategy">Strategy 
+        <span class="tooltip" data-tip="Scalping: Fast trades\nDay Trading: Trades within a day\nSwing Trading: Holding trades for days/weeks">ℹ</span>
+      </label>
       <select name="strategy" id="strategy">
-        <option value="Scalping" data-tooltip="Quick trades aiming for small profits.">Scalping</option>
-        <option value="Day Trading" data-tooltip="Open and close trades within the same day.">Day Trading</option>
-        <option value="Swing Trading" data-tooltip="Hold trades for days or weeks to capture bigger moves.">Swing Trading</option>
+        <option value="Scalping">Scalping</option>
+        <option value="Day Trading">Day Trading</option>
+        <option value="Swing Trading">Swing Trading</option>
       </select>
 
       <label for="risk">Risk Percent</label>
@@ -166,35 +137,11 @@
         <option value="5">5%</option>
       </select>
 
-      <label for="pairs">Trading Pairs (Multi-select)</label>
-      <select name="pairs" id="pairs" multiple size="12">
-        <option value="ALL">Select All</option>
-        <!-- Forex Major Pairs -->
-        <option value="AUD/USD">AUD/USD</option>
-        <option value="EUR/USD">EUR/USD</option>
-        <option value="GBP/USD">GBP/USD</option>
-        <option value="USD/JPY">USD/JPY</option>
-        <option value="USD/CHF">USD/CHF</option>
-        <option value="USD/CAD">USD/CAD</option>
-        <!-- Minor & Exotic Pairs -->
-        <option value="AUD/JPY">AUD/JPY</option>
-        <option value="EUR/GBP">EUR/GBP</option>
-        <option value="EUR/JPY">EUR/JPY</option>
-        <option value="GBP/JPY">GBP/JPY</option>
-        <option value="NZD/USD">NZD/USD</option>
-        <option value="AUD/NZD">AUD/NZD</option>
-        <option value="CAD/JPY">CAD/JPY</option>
-        <option value="CHF/JPY">CHF/JPY</option>
-        <!-- Synthetic Indices -->
-        <option value="Volatility 10 Index">Volatility 10 Index</option>
-        <option value="Volatility 25 Index">Volatility 25 Index</option>
-        <option value="Volatility 50 Index">Volatility 50 Index</option>
-        <option value="Volatility 75 Index">Volatility 75 Index</option>
-        <option value="Volatility 100 Index">Volatility 100 Index</option>
-        <option value="Crash 1000 Index">Crash 1000 Index</option>
-        <option value="Crash 500 Index">Crash 500 Index</option>
-        <option value="Boom 1000 Index">Boom 1000 Index</option>
-        <option value="Boom 500 Index">Boom 500 Index</option>
+      <label for="pairs">Trading Pairs (Multi-select or All)</label>
+      <select name="pairs" id="pairs" multiple>
+        {% for pair in deriv_pairs %}
+          <option value="{{ pair }}">{{ pair }}</option>
+        {% endfor %}
       </select>
 
       <label for="password">Change Password</label>
@@ -203,22 +150,15 @@
       <button type="submit">💾 Save Settings</button>
     </form>
 
-    <!-- Logout -->
+    <div class="trade-summary">
+      <p><strong>Total Wins:</strong> {{ user.total_wins }}</p>
+      <p><strong>Total Losses:</strong> {{ user.total_losses }}</p>
+      <p><strong>Total Draws:</strong> {{ user.total_draws }}</p>
+    </div>
+
     <div class="logout-button">
       <a href="/logout">🔒 Logout</a>
     </div>
   </div>
-
-  <script>
-    // Handle Select All
-    document.getElementById('pairs').addEventListener('change', function(e) {
-      if (e.target.value === 'ALL') {
-        const allSelected = Array.from(this.options).every(opt => opt.selected);
-        for (let option of this.options) {
-          option.selected = !allSelected;
-        }
-      }
-    });
-  </script>
 </body>
 </html>
