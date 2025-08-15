@@ -1,12 +1,13 @@
+import asyncio
+import json
+import websockets
 from typing import List, Optional
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
 from supabase import create_client
-import os
-import json
 from bot.engine import compute_signal, fetch_market_data, place_order
 
 # Initialize FastAPI app
@@ -80,6 +81,17 @@ def deserialize_pairs(raw) -> List[str]:
         return [x.strip() for x in raw.split(",") if x.strip()]
     return []
 
+# Fetch Deriv trading pairs
+async def get_deriv_pairs():
+    uri = "wss://ws.derivws.com/websockets/v3?app_id=1089"
+    async with websockets.connect(uri) as ws:
+        await ws.send(json.dumps({"active_symbols": "brief", "product_type": "basic"}))
+        response = await ws.recv()
+        data = json.loads(response)
+        if "active_symbols" in data:
+            return [symbol["display_name"] for symbol in data["active_symbols"]]
+    return []
+
 # --------------------------
 # Routes
 # --------------------------
@@ -126,12 +138,16 @@ async def dashboard(request: Request):
     # Deserialize selected pairs
     selected_pairs = deserialize_pairs(user.get("selected_pairs"))
 
+    # Fetch Deriv pairs
+    deriv_pairs = await get_deriv_pairs()
+
     return templates.TemplateResponse(
         "user_dashboard.html",
         {
             "request": request,
             "user": user,
             "pairs": DERIV_PAIRS,
+            "deriv_pairs": deriv_pairs,
             "selected_pairs": selected_pairs
         }
     )
