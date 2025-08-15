@@ -64,13 +64,14 @@ DERIV_PAIRS = [
 def all_pairs_flat() -> List[str]:
     return [item for group in DERIV_PAIRS for item in group["items"]]
 
-def serialize_pairs(pairs: List[str]) -> str:
-    try:
-        return json.dumps(list(set(pairs)))
-    except Exception:
-        return "[]"
+def serialize_pairs(pairs: List[str]) -> List[str]:
+    """Returns a Python list of unique, stripped strings from the input."""
+    if not pairs:
+        return []
+    return sorted(set(str(p).strip() for p in pairs if p.strip()))
 
 def deserialize_pairs(raw) -> List[str]:
+    """Accepts JSON string, Python list, or comma-separated string and returns a Python list."""
     if raw is None:
         return []
     if isinstance(raw, list):
@@ -201,7 +202,7 @@ async def update_settings(
         "trading_type": ttype,
         "strategy": strat,
         "risk_percent": rp,
-        "selected_pairs": serialize_pairs(normalized_pairs),
+        "selected_pairs": normalized_pairs,  # Pass as a Python list
     }
 
     if password and password.strip():
@@ -242,30 +243,47 @@ async def admin_add_user(
     trading_type: str = Form(...),
     risk_percent: int = Form(...),
     password: str = Form(...),
-    lifetime: str = Form(None)
+    lifetime: str = Form(None),
+    selected_pairs: Optional[List[str]] = Form(None),  # Ensure this is a list
 ):
-    hashed_password = hash_password(password)
-    lifetime_status = lifetime == "true"
-    strat = _norm_strategy(strategy)
-    ttype = _norm_type(trading_type)
-    rp = max(1, min(5, int(risk_percent) if str(risk_percent).isdigit() else 1))
+    try:
+        # Hash the password
+        hashed_password = hash_password(password)
 
-    supabase.table("user_settings").insert({
-        "login_id": login_id,
-        "bot_token": bot_token,
-        "password": hashed_password,
-        "strategy": strat,
-        "trading_type": ttype,
-        "risk_percent": rp,
-        "total_trades": 0,
-        "total_wins": 0,
-        "total_losses": 0,
-        "lifetime": lifetime_status,
-        "bot_status": "inactive",
-        "selected_pairs": "[]",
-    }).execute()
+        # Normalize inputs
+        strat = _norm_strategy(strategy)
+        ttype = _norm_type(trading_type)
+        rp = max(1, min(5, int(risk_percent) if str(risk_percent).isdigit() else 1))
 
-    return RedirectResponse("/admin", status_code=303)
+        # Serialize selected pairs as a Python list (not JSON string)
+        pairs_list = sorted(set(str(p).strip() for p in selected_pairs or []))
+
+        # Insert the new user into Supabase
+        supabase.table("user_settings").insert({
+            "login_id": login_id,
+            "bot_token": bot_token,
+            "password": hashed_password,
+            "strategy": strat,
+            "trading_type": ttype,
+            "risk_percent": rp,
+            "total_trades": 0,
+            "total_wins": 0,
+            "total_losses": 0,
+            "lifetime": lifetime == "true",
+            "bot_status": "inactive",
+            "selected_pairs": pairs_list,  # Pass as a Python list
+        }).execute()
+
+        # Redirect to the admin dashboard
+        return RedirectResponse(url="/admin", status_code=303)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            content={"error": f"Internal Server Error: {str(e)}"},
+            status_code=500
+        )
 
 @app.get("/admin/edit-user/{login_id}", response_class=HTMLResponse)
 async def edit_user_form(request: Request, login_id: str):
