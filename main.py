@@ -5,14 +5,12 @@ import websockets
 from typing import List, Optional
 from urllib.parse import unquote
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
 from supabase import create_client
-
-from bot.engine import compute_signal, fetch_market_data, place_order
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -28,12 +26,9 @@ async def head_check():
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 if not SUPABASE_URL or not SUPABASE_KEY:
-    # Avoid crashing on import; will fail on first DB use with a clear message instead.
-    def _missing_supabase(*args, **kwargs):
-        raise RuntimeError("SUPABASE_URL and/or SUPABASE_KEY environment variables are not set")
-    supabase = type("MissingSupabase", (), {"table": _missing_supabase})()
-else:
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    raise RuntimeError("SUPABASE_URL and/or SUPABASE_KEY environment variables are not set")
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --------------------------
 # Password hashing
@@ -67,60 +62,45 @@ DERIV_PAIRS = [
 ]
 
 def all_pairs_flat() -> List[str]:
-    flat: List[str] = []
-    for group in DERIV_PAIRS:
-        flat.extend(group["items"])
-    return flat
+    return [item for group in DERIV_PAIRS for item in group["items"]]
 
 def serialize_pairs(pairs: List[str]) -> str:
-    """Store as JSON string for portability."""
     try:
-        return json.dumps(pairs)
+        return json.dumps(list(set(pairs)))
     except Exception:
         return "[]"
 
 def deserialize_pairs(raw) -> List[str]:
-    """Accept JSON string, Python list, or comma-separated string."""
     if raw is None:
         return []
     if isinstance(raw, list):
         return [str(x) for x in raw]
     if isinstance(raw, str):
-        # Try JSON decoding first
         try:
             val = json.loads(raw)
             if isinstance(val, list):
                 return [str(x) for x in val]
         except Exception:
             pass
-        # Fallback: comma-separated
         return [x.strip() for x in raw.split(",") if x.strip()]
     return []
 
 def _norm_strategy(v: str) -> str:
-    """Map UI-friendly strategy labels to DB values (lowercase, schema-constrained)."""
-    if not v:
-        return v
     v = v.strip().lower()
-    # Accept variants
-    if v in {"scalping"}:
-        return "scalping"
-    if v in {"day trading", "day_trading", "daytrading", "day-trading"}:
-        return "day trading"
-    if v in {"swing trading", "swing_trading", "swingtrading", "swing-trading"}:
-        return "swing trading"
-    return v  # pass-through so you can expand allowed values later
+    mappings = {
+        "scalping": "scalping",
+        "day trading": "day trading",
+        "swing trading": "swing trading"
+    }
+    return mappings.get(v, v)
 
 def _norm_type(v: str) -> str:
-    """Map UI values to DB enum ('forex' | 'binary')."""
-    if not v:
-        return v
     v = v.strip().lower()
-    if v in {"forex", "fx"}:
-        return "forex"
-    if v in {"binary", "binary options", "options"}:
-        return "binary"
-    return v
+    mappings = {
+        "forex": "forex",
+        "binary": "binary"
+    }
+    return mappings.get(v, v)
 
 def _get_username_from_cookie(request: Request) -> Optional[str]:
     return request.cookies.get("username")
@@ -130,26 +110,20 @@ async def get_deriv_pairs() -> List[str]:
     uri = "wss://ws.derivws.com/websockets/v3?app_id=1089"
     try:
         async with websockets.connect(uri, ping_interval=None, close_timeout=5) as ws:
-            # Request only active symbols (brief) for speed
             await ws.send(json.dumps({"active_symbols": "brief", "product_type": "basic"}))
-
-            # Deriv can send a heartbeat or other messages; loop a few times to find the payload
             for _ in range(5):
                 response = await asyncio.wait_for(ws.recv(), timeout=8)
                 data = json.loads(response)
-                if isinstance(data, dict) and "active_symbols" in data:
-                    syms = data.get("active_symbols") or []
-                    # Prefer display_name; fallback to symbol
-                    out = []
-                    for s in syms:
+                if "active_symbols" in data:
+                    symbols = []
+                    for s in data["active_symbols"]:
                         name = s.get("display_name") or s.get("symbol")
                         if name:
-                            out.append(name)
-                    return sorted(set(out))
-            return []
-    except Exception:
-        # Swallow network errors and just return empty list
-        return []
+                            symbols.append(name)
+                    return sorted(set(symbols))
+    except Exception as e:
+        print(f"WebSocket error fetching pairs: {e}")
+    return []  # fallback to static list
 
 # --------------------------
 # Routes
@@ -161,14 +135,12 @@ async def home(request: Request):
 
 @app.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    # If env vars were missing, this will raise with a clear message
     res = supabase.table("user_settings").select("*").eq("login_id", username).execute()
-
     if not res.data or not pwd_context.verify(password, res.data[0]["password"]):
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "Invalid username or password"
-        })
+        }, status_code=401)
 
     response = RedirectResponse(url="/dashboard", status_code=303)
     response.set_cookie(key="username", value=username, httponly=True, max_age=60 * 60 * 6)
@@ -184,36 +156,28 @@ async def logout():
 async def dashboard(request: Request):
     username = _get_username_from_cookie(request)
     if not username:
-        return RedirectResponse(url="/")
+        return RedirectResponse("/", status_code=302)
 
     res = supabase.table("user_settings").select("*").eq("login_id", username).execute()
     if not res.data:
-        return RedirectResponse(url="/")
+        return RedirectResponse("/", status_code=302)
 
     user = res.data[0]
-
-    # Ensure counters exist (avoid template KeyErrors)
     user.setdefault("total_trades", 0)
     user.setdefault("total_wins", 0)
     user.setdefault("total_losses", 0)
-    user.setdefault("total_draws", 0)  # may not exist in DB; safe for template only
+    user.setdefault("total_draws", 0)
 
-    # Deserialize selected pairs
     selected_pairs = deserialize_pairs(user.get("selected_pairs"))
+    deriv_pairs = await get_deriv_pairs() or all_pairs_flat()
 
-    # Try dynamic Deriv pairs; if none, UI can still use the curated fallback
-    deriv_pairs = await get_deriv_pairs()
-
-    return templates.TemplateResponse(
-        "user_dashboard.html",
-        {
-            "request": request,
-            "user": user,
-            "pairs": DERIV_PAIRS,            # grouped fallback list
-            "deriv_pairs": deriv_pairs,      # flat list fetched live
-            "selected_pairs": selected_pairs  # for preselecting options
-        }
-    )
+    return templates.TemplateResponse("user_dashboard.html", {
+        "request": request,
+        "user": user,
+        "pairs": DERIV_PAIRS,
+        "deriv_pairs": deriv_pairs,
+        "selected_pairs": selected_pairs
+    })
 
 @app.post("/update-settings")
 async def update_settings(
@@ -222,26 +186,16 @@ async def update_settings(
     strategy: str = Form(...),
     risk_percent: int = Form(...),
     pairs: Optional[List[str]] = Form(None),
-    password: Optional[str] = Form(None),  # match the HTML field name
+    password: Optional[str] = Form(None),
 ):
     username = _get_username_from_cookie(request)
     if not username:
-        return RedirectResponse(url="/")
+        return RedirectResponse("/", status_code=302)
 
-    # Normalize to DB constraints
     ttype = _norm_type(trading_type)
     strat = _norm_strategy(strategy)
-
-    # Clamp risk_percent defensively between 1 and 5
-    try:
-        rp = int(risk_percent)
-    except Exception:
-        rp = 1
-    rp = max(1, min(5, rp))
-
-    # Normalize pairs (accept any list, dedupe, strip)
-    pairs = pairs or []
-    normalized_pairs = sorted(set(str(p).strip() for p in pairs if str(p).strip()))
+    rp = max(1, min(5, int(risk_percent) if str(risk_percent).isdigit() else 1))
+    normalized_pairs = sorted(set(str(p).strip() for p in pairs or [] if p.strip()))
 
     payload = {
         "trading_type": ttype,
@@ -250,15 +204,11 @@ async def update_settings(
         "selected_pairs": serialize_pairs(normalized_pairs),
     }
 
-    # Optional password change
     if password and password.strip():
         payload["password"] = hash_password(password.strip())
 
-    # Persist
     supabase.table("user_settings").update(payload).eq("login_id", username).execute()
-
-    # Return to dashboard
-    return RedirectResponse(url="/dashboard", status_code=303)
+    return RedirectResponse("/dashboard", status_code=303)
 
 # --------------------------
 # Admin Panel Routes
@@ -266,17 +216,23 @@ async def update_settings(
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
-    users = supabase.table("user_settings").select("*").execute()
+    username = _get_username_from_cookie(request)
+    if not username:
+        return RedirectResponse("/")
 
-    # Compute win rate defensively for template (even if DB already has a generated column)
-    for u in users.data:
-        trades = (u.get("total_trades") or 0)
-        wins = (u.get("total_wins") or 0)
-        try:
-            u["win_rate_local"] = (wins / trades * 100.0) if trades > 0 else 0.0
-        except Exception:
-            u["win_rate_local"] = 0.0
-    return templates.TemplateResponse("admin.html", {"request": request, "users": users.data})
+    # Optional: Restrict to admin users
+    # if username != "admin":
+    #     return RedirectResponse("/dashboard")
+
+    res = supabase.table("user_settings").select("*").execute()
+    users = res.data or []
+
+    for u in users:
+        trades = u.get("total_trades") or 0
+        wins = u.get("total_wins") or 0
+        u["win_rate_local"] = round(wins / trades * 100, 2) if trades > 0 else 0.0
+
+    return templates.TemplateResponse("admin.html", {"request": request, "users": users})
 
 @app.post("/admin/add-user")
 async def admin_add_user(
@@ -289,20 +245,11 @@ async def admin_add_user(
     lifetime: str = Form(None)
 ):
     hashed_password = hash_password(password)
-    lifetime_status = True if (lifetime or "").lower() == "true" else False
-
-    # Normalize to DB constraints
+    lifetime_status = lifetime == "true"
     strat = _norm_strategy(strategy)
     ttype = _norm_type(trading_type)
+    rp = max(1, min(5, int(risk_percent) if str(risk_percent).isdigit() else 1))
 
-    # Clamp risk between 1 and 5
-    try:
-        rp = int(risk_percent)
-    except Exception:
-        rp = 1
-    rp = max(1, min(5, rp))
-
-    # Important: only include columns that exist in your DB schema
     supabase.table("user_settings").insert({
         "login_id": login_id,
         "bot_token": bot_token,
@@ -315,16 +262,16 @@ async def admin_add_user(
         "total_losses": 0,
         "lifetime": lifetime_status,
         "bot_status": "inactive",
-        "selected_pairs": serialize_pairs([]),
+        "selected_pairs": "[]",
     }).execute()
 
-    return RedirectResponse(url="/admin", status_code=303)
+    return RedirectResponse("/admin", status_code=303)
 
 @app.get("/admin/edit-user/{login_id}", response_class=HTMLResponse)
 async def edit_user_form(request: Request, login_id: str):
     res = supabase.table("user_settings").select("*").eq("login_id", login_id).execute()
     if not res.data:
-        return RedirectResponse(url="/admin")
+        return RedirectResponse("/admin")
     return templates.TemplateResponse("edit_user.html", {"request": request, "user": res.data[0]})
 
 @app.post("/admin/update-user/{login_id}")
@@ -335,14 +282,9 @@ async def update_user(
     trading_type: str = Form(...),
     risk_percent: int = Form(...)
 ):
-    # Normalize & clamp
     strat = _norm_strategy(strategy)
     ttype = _norm_type(trading_type)
-    try:
-        rp = int(risk_percent)
-    except Exception:
-        rp = 1
-    rp = max(1, min(5, rp))
+    rp = max(1, min(5, int(risk_percent) if str(risk_percent).isdigit() else 1))
 
     supabase.table("user_settings").update({
         "bot_token": bot_token,
@@ -351,42 +293,38 @@ async def update_user(
         "risk_percent": rp
     }).eq("login_id", login_id).execute()
 
-    return RedirectResponse(url="/admin", status_code=303)
+    return RedirectResponse("/admin", status_code=303)
 
 @app.post("/admin/delete-user/{login_id}")
 async def delete_user(login_id: str):
     supabase.table("user_settings").delete().eq("login_id", login_id).execute()
-    return RedirectResponse(url="/admin", status_code=303)
+    return RedirectResponse("/admin", status_code=303)
 
 @app.post("/admin/toggle-bot/{login_id}")
 async def toggle_bot(login_id: str):
     res = supabase.table("user_settings").select("bot_status").eq("login_id", login_id).execute()
     if not res.data:
-        return RedirectResponse(url="/admin", status_code=303)
-    curr = (res.data[0].get("bot_status") or "inactive").lower()
+        raise HTTPException(status_code=404, detail="User not found")
+    curr = res.data[0].get("bot_status", "inactive").lower()
     new_status = "active" if curr != "active" else "inactive"
     supabase.table("user_settings").update({"bot_status": new_status}).eq("login_id", login_id).execute()
-    return RedirectResponse(url="/admin", status_code=303)
+    return RedirectResponse("/admin", status_code=303)
 
 @app.post("/admin/toggle-lifetime/{login_id}")
 async def toggle_lifetime(login_id: str):
     res = supabase.table("user_settings").select("lifetime").eq("login_id", login_id).execute()
     if not res.data:
-        return RedirectResponse(url="/admin", status_code=303)
+        raise HTTPException(status_code=404, detail="User not found")
     curr = bool(res.data[0].get("lifetime"))
     supabase.table("user_settings").update({"lifetime": not curr}).eq("login_id", login_id).execute()
-    return RedirectResponse(url="/admin", status_code=303)
+    return RedirectResponse("/admin", status_code=303)
 
 # --------------------------
-# Price & Bot control APIs (for your dashboard JS)
+# Price & Bot Control APIs
 # --------------------------
 
 @app.get("/price/{symbol}")
 async def price(symbol: str):
-    """
-    Lightweight price fetch using your existing fetch_market_data.
-    Accepts symbols like 'EUR%2FUSD' or 'Volatility%2010%20Index'.
-    """
     try:
         sym = unquote(symbol)
         df = fetch_market_data(symbol=sym)
@@ -395,35 +333,25 @@ async def price(symbol: str):
     except Exception as e:
         return JSONResponse({"error": f"Failed to fetch price: {e}"}, status_code=500)
 
-@app.post("/bot/start")
-async def bot_start(request: Request):
+@app.post("/bot/{action}")
+async def bot_control(action: str, request: Request):
     username = _get_username_from_cookie(request)
     if not username:
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    supabase.table("user_settings").update({"bot_status": "active"}).eq("login_id", username).execute()
-    return {"status": "active"}
 
-@app.post("/bot/pause")
-async def bot_pause(request: Request):
-    username = _get_username_from_cookie(request)
-    if not username:
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    supabase.table("user_settings").update({"bot_status": "paused"}).eq("login_id", username).execute()
-    return {"status": "paused"}
+    valid_actions = {"start": "active", "pause": "paused", "stop": "inactive"}
+    if action not in valid_actions:
+        return JSONResponse({"error": "Invalid action"}, status_code=400)
 
-@app.post("/bot/stop")
-async def bot_stop(request: Request):
-    username = _get_username_from_cookie(request)
-    if not username:
-        return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    supabase.table("user_settings").update({"bot_status": "inactive"}).eq("login_id", username).execute()
-    return {"status": "inactive"}
+    supabase.table("user_settings").update({"bot_status": valid_actions[action]}).eq("login_id", username).execute()
+    return {"status": valid_actions[action]}
 
 @app.get("/bot/status")
 async def bot_status(request: Request):
     username = _get_username_from_cookie(request)
     if not username:
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
+
     res = supabase.table("user_settings").select("bot_status").eq("login_id", username).execute()
     if not res.data:
         return JSONResponse({"error": "User not found"}, status_code=404)
@@ -435,32 +363,23 @@ async def bot_status(request: Request):
 
 @app.get("/trade/{login_id}")
 async def execute_trade(login_id: str):
-    """
-    Execute trading logic for a user.
-    """
     res = supabase.table("user_settings").select("*").eq("login_id", login_id).execute()
     if not res.data:
-        return {"error": "User not found"}
+        raise HTTPException(status_code=404, detail="User not found")
 
     user = res.data[0]
-
-    # Use first selected pair if available; otherwise fall back to BTCUSD
     pairs = deserialize_pairs(user.get("selected_pairs"))
     symbol = pairs[0] if pairs else user.get("symbol", "BTCUSD")
 
-    # Fetch market data
-    df = fetch_market_data(symbol=symbol)
+    try:
+        df = fetch_market_data(symbol=symbol)
+        signal = compute_signal(df)
+        qty = user.get("risk_percent", 1)
+        last_close = float(df.iloc[-1]["close"])
 
-    # Compute trading signal
-    signal = compute_signal(df)
-
-    # Place order based on signal
-    qty = user.get("risk_percent", 1)
-    last_close = float(df.iloc[-1]["close"])
-    if signal == "buy":
-        place_order(user_id=login_id, side="buy", quantity=qty, price=last_close)
-    elif signal == "sell":
-        place_order(user_id=login_id, side="sell", quantity=qty, price=last_close)
-
-    # Optionally update performance counters here (wins/losses) after order result webhook
-    return {"symbol": symbol, "signal": signal, "price": last_close}
+        if signal in ["buy", "sell"]:
+            place_order(user_id=login_id, side=signal, quantity=qty, price=last_close)
+            return {"symbol": symbol, "signal": signal, "price": last_close}
+        return {"symbol": symbol, "signal": signal}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Trading error: {str(e)}")
