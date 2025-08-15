@@ -1,8 +1,9 @@
+import os
 import asyncio
 import json
 import websockets
 from typing import List, Optional
-from fastapi import FastAPI, Request, Form, Depends
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -18,18 +19,30 @@ app = FastAPI()
 async def head_check():
     return {"status": "ok"}
 
-# Supabase config
+# --------------------------
+# Supabase config (defensive)
+# --------------------------
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+if not SUPABASE_URL or not SUPABASE_KEY:
+    # Avoid crashing on import; will fail on first DB use with a clear message instead.
+    def _missing_supabase(*args, **kwargs):
+        raise RuntimeError("SUPABASE_URL and/or SUPABASE_KEY environment variables are not set")
+    supabase = type("MissingSupabase", (), {"table": _missing_supabase})()
+else:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# --------------------------
 # Password hashing
+# --------------------------
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
+# --------------------------
 # Templates & Static
+# --------------------------
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -37,7 +50,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Helpers / Constants
 # --------------------------
 
-# A curated set of Deriv pairs
+# A curated set of Deriv pairs (fallback if WS fetch fails)
 DERIV_PAIRS = [
     {"group": "Forex Majors", "items": [
         "AUD/USD", "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF", "USD/CAD",
@@ -51,7 +64,7 @@ DERIV_PAIRS = [
 ]
 
 def all_pairs_flat() -> List[str]:
-    flat = []
+    flat: List[str] = []
     for group in DERIV_PAIRS:
         flat.extend(group["items"])
     return flat
@@ -70,27 +83,42 @@ def deserialize_pairs(raw) -> List[str]:
     if isinstance(raw, list):
         return [str(x) for x in raw]
     if isinstance(raw, str):
-        # Try JSON decoding
+        # Try JSON decoding first
         try:
             val = json.loads(raw)
             if isinstance(val, list):
                 return [str(x) for x in val]
         except Exception:
             pass
-        # Fallback: Comma-separated values
+        # Fallback: comma-separated
         return [x.strip() for x in raw.split(",") if x.strip()]
     return []
 
-# Fetch Deriv trading pairs
-async def get_deriv_pairs():
+# Fetch Deriv trading pairs (defensive networking)
+async def get_deriv_pairs() -> List[str]:
     uri = "wss://ws.derivws.com/websockets/v3?app_id=1089"
-    async with websockets.connect(uri) as ws:
-        await ws.send(json.dumps({"active_symbols": "brief", "product_type": "basic"}))
-        response = await ws.recv()
-        data = json.loads(response)
-        if "active_symbols" in data:
-            return [symbol["display_name"] for symbol in data["active_symbols"]]
-    return []
+    try:
+        async with websockets.connect(uri, ping_interval=None, close_timeout=5) as ws:
+            # Request only active symbols (brief) for speed
+            await ws.send(json.dumps({"active_symbols": "brief", "product_type": "basic"}))
+
+            # Deriv can send a heartbeat or other messages; loop a few times to find the payload
+            for _ in range(5):
+                response = await asyncio.wait_for(ws.recv(), timeout=8)
+                data = json.loads(response)
+                if isinstance(data, dict) and "active_symbols" in data:
+                    syms = data.get("active_symbols") or []
+                    # Prefer display_name; fallback to symbol
+                    out = []
+                    for s in syms:
+                        name = s.get("display_name") or s.get("symbol")
+                        if name:
+                            out.append(name)
+                    return sorted(set(out))
+            return []
+    except Exception:
+        # Swallow network errors and just return empty list
+        return []
 
 # --------------------------
 # Routes
@@ -102,12 +130,15 @@ async def home(request: Request):
 
 @app.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
+    # If env vars were missing, this will raise with a clear message
     res = supabase.table("user_settings").select("*").eq("login_id", username).execute()
+
     if not res.data or not pwd_context.verify(password, res.data[0]["password"]):
         return templates.TemplateResponse("login.html", {
             "request": request,
             "error": "Invalid username or password"
         })
+
     response = RedirectResponse(url="/dashboard", status_code=303)
     response.set_cookie(key="username", value=username, httponly=True, max_age=60 * 60 * 6)
     return response
@@ -130,7 +161,8 @@ async def dashboard(request: Request):
 
     user = res.data[0]
 
-    # Ensure counters exist
+    # Ensure counters exist (avoid template KeyErrors)
+    user.setdefault("total_trades", 0)
     user.setdefault("total_wins", 0)
     user.setdefault("total_losses", 0)
     user.setdefault("total_draws", 0)
@@ -138,7 +170,7 @@ async def dashboard(request: Request):
     # Deserialize selected pairs
     selected_pairs = deserialize_pairs(user.get("selected_pairs"))
 
-    # Fetch Deriv pairs
+    # Try dynamic Deriv pairs; if none, UI can still use the curated fallback
     deriv_pairs = await get_deriv_pairs()
 
     return templates.TemplateResponse(
@@ -146,8 +178,8 @@ async def dashboard(request: Request):
         {
             "request": request,
             "user": user,
-            "pairs": DERIV_PAIRS,
-            "deriv_pairs": deriv_pairs,
+            "pairs": DERIV_PAIRS,            # grouped fallback list for the grouped multiselect
+            "deriv_pairs": deriv_pairs,      # flat list fetched live (can drive a second multiselect)
             "selected_pairs": selected_pairs
         }
     )
@@ -165,17 +197,23 @@ async def update_settings(
     if not username:
         return RedirectResponse(url="/")
 
-    # Normalize pairs (filter unknown pairs)
-    all_known = set(all_pairs_flat())
-    pairs = pairs or []
-    filtered_pairs = [p for p in pairs if p in all_known]
+    # Clamp risk_percent defensively between 1 and 5
+    try:
+        rp = int(risk_percent)
+    except Exception:
+        rp = 1
+    rp = max(1, min(5, rp))
 
-    # Build update payload
+    # Accept whatever pairs came from the UI (may be from live Deriv fetch),
+    # but normalize to strings and unique.
+    pairs = pairs or []
+    normalized_pairs = sorted(set(str(p).strip() for p in pairs if str(p).strip()))
+
     payload = {
         "trading_type": trading_type,
         "strategy": strategy,
-        "risk_percent": int(risk_percent),
-        "selected_pairs": serialize_pairs(filtered_pairs),
+        "risk_percent": rp,
+        "selected_pairs": serialize_pairs(normalized_pairs),
     }
 
     # Optional password change
@@ -193,11 +231,15 @@ async def update_settings(
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
     users = supabase.table("user_settings").select("*").execute()
-    # Compute win rate defensively
+
+    # Compute win rate defensively for template
     for u in users.data:
         trades = (u.get("total_trades") or 0)
         wins = (u.get("total_wins") or 0)
-        u["win_rate"] = (wins / trades * 100.0) if trades > 0 else 0.0
+        try:
+            u["win_rate"] = (wins / trades * 100.0) if trades > 0 else 0.0
+        except Exception:
+            u["win_rate"] = 0.0
     return templates.TemplateResponse("admin.html", {"request": request, "users": users.data})
 
 @app.post("/admin/add-user")
@@ -213,13 +255,20 @@ async def admin_add_user(
     hashed_password = hash_password(password)
     lifetime_status = True if lifetime == "true" else False
 
+    # Clamp risk between 1 and 5
+    try:
+        rp = int(risk_percent)
+    except Exception:
+        rp = 1
+    rp = max(1, min(5, rp))
+
     supabase.table("user_settings").insert({
         "login_id": login_id,
         "bot_token": bot_token,
         "password": hashed_password,
         "strategy": strategy,
         "trading_type": trading_type,
-        "risk_percent": risk_percent,
+        "risk_percent": rp,
         "total_trades": 0,
         "total_wins": 0,
         "total_losses": 0,
@@ -246,11 +295,18 @@ async def update_user(
     trading_type: str = Form(...),
     risk_percent: int = Form(...)
 ):
+    # Clamp risk between 1 and 5
+    try:
+        rp = int(risk_percent)
+    except Exception:
+        rp = 1
+    rp = max(1, min(5, rp))
+
     supabase.table("user_settings").update({
         "bot_token": bot_token,
         "strategy": strategy,
         "trading_type": trading_type,
-        "risk_percent": risk_percent
+        "risk_percent": rp
     }).eq("login_id", login_id).execute()
 
     return RedirectResponse(url="/admin", status_code=303)
@@ -288,8 +344,11 @@ async def execute_trade(login_id: str):
     """
     Execute trading logic for a user.
     """
-    # Fetch user settings
-    user = supabase.table("user_settings").select("*").eq("login_id", login_id).execute().data[0]
+    res = supabase.table("user_settings").select("*").eq("login_id", login_id).execute()
+    if not res.data:
+        return {"error": "User not found"}
+
+    user = res.data[0]
 
     # Fetch market data
     symbol = user.get("symbol", "BTCUSD")  # Default to BTCUSD if no symbol is specified
