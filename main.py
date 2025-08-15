@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
 from supabase import create_client
 from apscheduler.schedulers.background import BackgroundScheduler
-from engine import run_bot, ExchangeClient
+from bot.engine import run_bot, ExchangeClient  # Updated import path
 
 # Initialize FastAPI app
 app = FastAPI()
