@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>User Dashboard</title>
   <link rel="stylesheet" href="/static/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       background-image: url("/static/background.jpg");
@@ -14,29 +15,29 @@
       padding: 0;
     }
     .dashboard-container {
-      max-width: 800px;
-      margin: 60px auto;
-      padding: 30px;
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 20px;
       background: rgba(0, 0, 0, 0.85);
       color: #ffffff;
       border-radius: 12px;
       box-shadow: 0 0 25px rgba(0, 0, 0, 0.7);
     }
-    .dashboard-container h1 {
+    h1 {
       text-align: center;
-      margin-bottom: 25px;
+      margin-bottom: 20px;
       color: #00ffff;
     }
     .info-section p {
       margin: 6px 0;
       font-size: 15px;
     }
-    .settings-form label {
+    label {
       display: block;
       margin: 12px 0 6px;
       color: #ffcc00;
     }
-    .settings-form select, .settings-form input {
+    select, input {
       width: 100%;
       padding: 8px;
       border-radius: 4px;
@@ -65,8 +66,8 @@
       z-index: 10;
       width: 200px;
     }
-    .settings-form button {
-      margin-top: 20px;
+    button {
+      margin-top: 15px;
       width: 100%;
       background-color: #00cc66;
       border: none;
@@ -77,29 +78,8 @@
       cursor: pointer;
       transition: 0.3s;
     }
-    .settings-form button:hover {
+    button:hover {
       background-color: #00994d;
-    }
-    .trade-summary {
-      margin-top: 20px;
-      background: rgba(255,255,255,0.05);
-      padding: 10px;
-      border-radius: 6px;
-    }
-    .logout-button {
-      text-align: center;
-      margin-top: 30px;
-    }
-    .logout-button a {
-      background-color: #ff4444;
-      color: white;
-      text-decoration: none;
-      padding: 10px 25px;
-      border-radius: 6px;
-      transition: 0.3s;
-    }
-    .logout-button a:hover {
-      background-color: #cc0000;
     }
     .pair-select-buttons {
       margin-bottom: 10px;
@@ -116,6 +96,52 @@
     .pair-select-buttons button:hover {
       background-color: #006699;
     }
+    .trade-summary {
+      margin-top: 20px;
+      background: rgba(255,255,255,0.05);
+      padding: 10px;
+      border-radius: 6px;
+    }
+    .logout-button {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .logout-button a {
+      background-color: #ff4444;
+      color: white;
+      text-decoration: none;
+      padding: 10px 25px;
+      border-radius: 6px;
+      transition: 0.3s;
+    }
+    .logout-button a:hover {
+      background-color: #cc0000;
+    }
+    .bot-controls {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .bot-controls button {
+      flex: 1;
+      min-width: 100px;
+    }
+    .notification {
+      text-align: center;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 10px;
+      display: none;
+    }
+    .success { background: #00cc66; }
+    .error { background: #cc0000; }
+    @media (max-width: 600px) {
+      .dashboard-container {
+        margin: 10px;
+        padding: 15px;
+      }
+    }
   </style>
   <script>
     function selectAllPairs(selectBox, selectAll) {
@@ -123,42 +149,71 @@
         option.selected = selectAll;
       }
     }
+
+    function showNotification(type, message) {
+      const notif = document.getElementById('notification');
+      notif.className = 'notification ' + type;
+      notif.innerText = message;
+      notif.style.display = 'block';
+      setTimeout(() => notif.style.display = 'none', 3000);
+    }
+
+    async function fetchLivePrices() {
+      const elements = document.querySelectorAll('[data-symbol]');
+      for (let el of elements) {
+        let symbol = el.getAttribute('data-symbol');
+        try {
+          let res = await fetch(`/price/${symbol}`);
+          let data = await res.json();
+          el.innerText = data.price ?? 'N/A';
+        } catch {
+          el.innerText = 'Error';
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchLivePrices();
+      setInterval(fetchLivePrices, 5000);
+    });
   </script>
 </head>
 <body>
   <div class="dashboard-container">
     <h1>📊 User Dashboard</h1>
 
-    <!-- User Info Section -->
+    <div id="notification"></div>
+
     <div class="info-section">
       <p><strong>Login ID:</strong> {{ user.login_id }}</p>
       <p><strong>Bot Token:</strong> {{ user.bot_token }}</p>
     </div>
 
-    <!-- Settings Form -->
     <form method="post" action="/update-settings" class="settings-form">
-      <label for="trading_type">Trading Method</label>
+      <label for="trading_type">Trading Method 
+        <span class="tooltip" data-tip="Choose whether to trade Forex or Binary options.">ℹ</span>
+      </label>
       <select name="trading_type" id="trading_type" required>
-        <option value="Forex">Forex</option>
-        <option value="Binary">Binary</option>
+        <option value="Forex" {% if user.trading_type == 'Forex' %}selected{% endif %}>Forex</option>
+        <option value="Binary" {% if user.trading_type == 'Binary' %}selected{% endif %}>Binary</option>
       </select>
 
       <label for="strategy">Strategy 
         <span class="tooltip" data-tip="Scalping: Fast trades\nDay Trading: Trades within a day\nSwing Trading: Holding trades for days/weeks">ℹ</span>
       </label>
       <select name="strategy" id="strategy" required>
-        <option value="Scalping">Scalping</option>
-        <option value="Day Trading">Day Trading</option>
-        <option value="Swing Trading">Swing Trading</option>
+        <option value="Scalping" {% if user.strategy == 'Scalping' %}selected{% endif %}>Scalping</option>
+        <option value="Day Trading" {% if user.strategy == 'Day Trading' %}selected{% endif %}>Day Trading</option>
+        <option value="Swing Trading" {% if user.strategy == 'Swing Trading' %}selected{% endif %}>Swing Trading</option>
       </select>
 
-      <label for="risk_percent">Risk Percent</label>
+      <label for="risk_percent">Risk Percent 
+        <span class="tooltip" data-tip="Percentage of your balance you are willing to risk per trade.">ℹ</span>
+      </label>
       <select name="risk_percent" id="risk_percent" required>
-        <option value="1">1%</option>
-        <option value="2">2%</option>
-        <option value="3">3%</option>
-        <option value="4">4%</option>
-        <option value="5">5%</option>
+        {% for i in range(1,6) %}
+          <option value="{{ i }}" {% if user.risk_percent == i %}selected{% endif %}>{{ i }}%</option>
+        {% endfor %}
       </select>
 
       <label for="pairs">Trading Pairs (Multi-select or All)</label>
@@ -168,24 +223,30 @@
       </div>
       <select name="pairs" id="pairs" multiple size="8">
         {% for pair in deriv_pairs %}
-          <option value="{{ pair }}">{{ pair }}</option>
+          <option value="{{ pair }}" {% if pair in user.pairs %}selected{% endif %}>{{ pair }} - <span data-symbol="{{ pair }}">Loading...</span></option>
         {% endfor %}
       </select>
 
-      <label for="password">Change Password</label>
+      <label for="password">Change Password 
+        <span class="tooltip" data-tip="Optional: Update your account password here.">ℹ</span>
+      </label>
       <input type="password" name="password" placeholder="Enter new password">
 
-      <button type="submit">💾 Save Settings</button>
+      <button type="submit" onclick="showNotification('success', 'Settings saved successfully!')">💾 Save Settings</button>
     </form>
 
-    <!-- Trade Summary -->
+    <div class="bot-controls">
+      <button onclick="fetch('/bot/start')">▶ Start Bot</button>
+      <button onclick="fetch('/bot/pause')">⏸ Pause Bot</button>
+      <button onclick="fetch('/bot/stop')">⏹ Stop Bot</button>
+    </div>
+
     <div class="trade-summary">
       <p><strong>Total Wins:</strong> {{ user.total_wins }}</p>
       <p><strong>Total Losses:</strong> {{ user.total_losses }}</p>
       <p><strong>Total Draws:</strong> {{ user.total_draws }}</p>
     </div>
 
-    <!-- Logout Button -->
     <div class="logout-button">
       <a href="/logout">🔒 Logout</a>
     </div>
