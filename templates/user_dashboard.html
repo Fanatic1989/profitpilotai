@@ -137,8 +137,8 @@
 
     <!-- Settings Form -->
     <form method="post" action="/update-settings" class="settings-form">
-      <label for="method">Trading Method</label>
-      <select name="method" id="method">
+      <label for="trading_type">Trading Method</label>
+      <select name="trading_type" id="trading_type" required>
         <option value="Forex">Forex</option>
         <option value="Binary">Binary</option>
       </select>
@@ -146,14 +146,14 @@
       <label for="strategy">Strategy 
         <span class="tooltip" data-tip="Scalping: Fast trades\nDay Trading: Trades within a day\nSwing Trading: Holding trades for days/weeks">ℹ</span>
       </label>
-      <select name="strategy" id="strategy">
+      <select name="strategy" id="strategy" required>
         <option value="Scalping">Scalping</option>
         <option value="Day Trading">Day Trading</option>
         <option value="Swing Trading">Swing Trading</option>
       </select>
 
-      <label for="risk">Risk Percent</label>
-      <select name="risk" id="risk">
+      <label for="risk_percent">Risk Percent</label>
+      <select name="risk_percent" id="risk_percent" required>
         <option value="1">1%</option>
         <option value="2">2%</option>
         <option value="3">3%</option>
