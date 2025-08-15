@@ -1,7 +1,6 @@
 import os
 import asyncio
 import json
-import websockets
 from typing import List, Optional
 from urllib.parse import unquote
 
@@ -11,6 +10,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
 from supabase import create_client
+from apscheduler.schedulers.background import BackgroundScheduler
+from engine import run_bot, ExchangeClient
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -221,10 +222,6 @@ async def admin_panel(request: Request):
     if not username:
         return RedirectResponse("/")
 
-    # Optional: Restrict to admin users
-    # if username != "admin":
-    #     return RedirectResponse("/dashboard")
-
     res = supabase.table("user_settings").select("*").execute()
     users = res.data or []
 
@@ -247,18 +244,12 @@ async def admin_add_user(
     selected_pairs: Optional[List[str]] = Form(None),  # Ensure this is a list
 ):
     try:
-        # Hash the password
         hashed_password = hash_password(password)
-
-        # Normalize inputs
         strat = _norm_strategy(strategy)
         ttype = _norm_type(trading_type)
         rp = max(1, min(5, int(risk_percent) if str(risk_percent).isdigit() else 1))
-
-        # Serialize selected pairs as a Python list (not JSON string)
         pairs_list = sorted(set(str(p).strip() for p in selected_pairs or []))
 
-        # Insert the new user into Supabase
         supabase.table("user_settings").insert({
             "login_id": login_id,
             "bot_token": bot_token,
@@ -274,7 +265,6 @@ async def admin_add_user(
             "selected_pairs": pairs_list,  # Pass as a Python list
         }).execute()
 
-        # Redirect to the admin dashboard
         return RedirectResponse(url="/admin", status_code=303)
 
     except Exception as e:
@@ -401,3 +391,25 @@ async def execute_trade(login_id: str):
         return {"symbol": symbol, "signal": signal}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Trading error: {str(e)}")
+
+# --------------------------
+# Scheduler Integration
+# --------------------------
+
+# Initialize the scheduler
+scheduler = BackgroundScheduler()
+
+# Start the bot runner as a scheduled task
+def start_bot_scheduler():
+    exchange_client = ExchangeClient(api_key=os.getenv("EXCHANGE_API_KEY"), api_secret=os.getenv("EXCHANGE_API_SECRET"))
+    scheduler.add_job(run_bot, "interval", minutes=1, args=[supabase, exchange_client])
+    scheduler.start()
+
+# Hook into FastAPI's lifecycle events
+@app.on_event("startup")
+async def startup_event():
+    start_bot_scheduler()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    scheduler.shutdown()
