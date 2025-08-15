@@ -201,3 +201,31 @@ def run_bot(supabase_client, exchange_client):
 
     except Exception as e:
         print(f"Critical error in bot execution: {str(e)}")
+
+
+class ExchangeClient:
+    """
+    A simple exchange client to fetch market data.
+    Replace this with your actual exchange API integration.
+    """
+    def __init__(self, api_key: str, api_secret: str):
+        self.api_key = api_key
+        self.api_secret = api_secret
+        self.base_url = "https://api.exchange.com/v1"  # Replace with your exchange's API URL
+
+    def get_candles(self, symbol: str, timeframe: str = "1h", limit: int = 100) -> list:
+        """
+        Fetch historical candles for a given symbol.
+        """
+        url = f"{self.base_url}/candles"
+        params = {
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "limit": limit
+        }
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        response = requests.get(url, params=params, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Failed to fetch candles: {response.text}")
