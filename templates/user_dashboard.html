@@ -101,17 +101,41 @@
     .logout-button a:hover {
       background-color: #cc0000;
     }
+    .pair-select-buttons {
+      margin-bottom: 10px;
+    }
+    .pair-select-buttons button {
+      margin-right: 10px;
+      padding: 5px 10px;
+      background-color: #0099cc;
+      border: none;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .pair-select-buttons button:hover {
+      background-color: #006699;
+    }
   </style>
+  <script>
+    function selectAllPairs(selectBox, selectAll) {
+      for (let option of selectBox.options) {
+        option.selected = selectAll;
+      }
+    }
+  </script>
 </head>
 <body>
   <div class="dashboard-container">
     <h1>📊 User Dashboard</h1>
 
+    <!-- User Info Section -->
     <div class="info-section">
       <p><strong>Login ID:</strong> {{ user.login_id }}</p>
       <p><strong>Bot Token:</strong> {{ user.bot_token }}</p>
     </div>
 
+    <!-- Settings Form -->
     <form method="post" action="/update-settings" class="settings-form">
       <label for="method">Trading Method</label>
       <select name="method" id="method">
@@ -138,7 +162,11 @@
       </select>
 
       <label for="pairs">Trading Pairs (Multi-select or All)</label>
-      <select name="pairs" id="pairs" multiple>
+      <div class="pair-select-buttons">
+        <button type="button" onclick="selectAllPairs(document.getElementById('pairs'), true)">Select All</button>
+        <button type="button" onclick="selectAllPairs(document.getElementById('pairs'), false)">Deselect All</button>
+      </div>
+      <select name="pairs" id="pairs" multiple size="8">
         {% for pair in deriv_pairs %}
           <option value="{{ pair }}">{{ pair }}</option>
         {% endfor %}
@@ -150,12 +178,14 @@
       <button type="submit">💾 Save Settings</button>
     </form>
 
+    <!-- Trade Summary -->
     <div class="trade-summary">
       <p><strong>Total Wins:</strong> {{ user.total_wins }}</p>
       <p><strong>Total Losses:</strong> {{ user.total_losses }}</p>
       <p><strong>Total Draws:</strong> {{ user.total_draws }}</p>
     </div>
 
+    <!-- Logout Button -->
     <div class="logout-button">
       <a href="/logout">🔒 Logout</a>
     </div>
