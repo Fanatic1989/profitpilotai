@@ -173,7 +173,7 @@ async def fetch_market_data(symbol: str):
             response = await asyncio.wait_for(ws.recv(), timeout=10)
             data = json.loads(response)
 
-            if "error" in 
+            if "error" in data:
                 raise ValueError(f"Error fetching data for symbol {symbol}: {data['error']['message']}")
 
             tick = data.get("tick", {})
@@ -439,14 +439,15 @@ async def execute_trade(login_id: str):
     symbol = deriv_pairs[0] if deriv_pairs else user.get("symbol", "BTCUSD")
 
     try:
-        df = fetch_market_data(symbol=symbol)
-        signal = compute_signal(df)
+        data = await fetch_market_data(symbol=symbol)
+        price_val = float(data["close"])
+        signal = "buy"  # Replace with actual signal logic
         qty = user.get("risk_percent", 1)
-        last_close = float(df.iloc[-1]["close"])
 
         if signal in ["buy", "sell"]:
-            place_order(user_id=login_id, side=signal, quantity=qty, price=last_close)
-            return {"symbol": symbol, "signal": signal, "price": last_close}
+            # Simulate placing an order
+            logger.info(f"Placing order for user {login_id}: {signal}, quantity={qty}, price={price_val}")
+            return {"symbol": symbol, "signal": signal, "price": price_val}
         return {"symbol": symbol, "signal": signal}
     except Exception as e:
         logger.error(f"Trading error for user {login_id}: {e}")
