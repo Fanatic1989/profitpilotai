@@ -455,7 +455,7 @@ def start_bot_scheduler():
     if not deriv_api_token:
         raise RuntimeError("DERIV_API_TOKEN environment variable is not set")
 
-    exchange_client = ExchangeClient(token=deriv_api_token)  # Fixed parameter name to match ExchangeClient's API
+    exchange_client = ExchangeClient(api_token=deriv_api_token)  # Fixed parameter name to match ExchangeClient's API
     scheduler.add_job(run_bot, "interval", minutes=1, args=[supabase, exchange_client])
     scheduler.start()
 
