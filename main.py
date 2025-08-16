@@ -12,6 +12,7 @@ from passlib.context import CryptContext
 from supabase import create_client
 from apscheduler.schedulers.background import BackgroundScheduler
 from bot.engine import run_bot, ExchangeClient  # Updated import path
+import requests  # Added to resolve "name 'requests' is not defined" error
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -246,8 +247,8 @@ async def update_settings(
 async def admin_panel(request: Request):
     username = _get_username_from_cookie(request)
     if not username:
-        return RedirectResponse("/")
-
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Please log in to access the admin dashboard"})
+    
     res = supabase.table("user_settings").select("*").execute()
     users = res.data or []
 
@@ -300,13 +301,6 @@ async def admin_add_user(
             content={"error": f"Internal Server Error: {str(e)}"},
             status_code=500
         )
-
-@app.get("/admin/edit-user/{login_id}", response_class=HTMLResponse)
-async def edit_user_form(request: Request, login_id: str):
-    res = supabase.table("user_settings").select("*").eq("login_id", login_id).execute()
-    if not res.data:
-        return RedirectResponse("/admin")
-    return templates.TemplateResponse("edit_user.html", {"request": request, "user": res.data[0]})
 
 @app.post("/admin/update-user/{login_id}")
 async def update_user(
@@ -363,8 +357,11 @@ async def price(symbol: str):
         # Map user-friendly symbol to Deriv API symbol
         deriv_symbol = DERIV_SYMBOL_MAP.get(symbol, symbol)
         sym = unquote(deriv_symbol)
+        
+        # Fetch market data for the mapped symbol
         df = fetch_market_data(symbol=sym)
         price_val = float(df.iloc[-1]["close"])
+        
         return {"symbol": sym, "price": price_val}
     except Exception as e:
         return JSONResponse({"error": f"Failed to fetch price: {e}"}, status_code=500)
@@ -431,7 +428,12 @@ scheduler = BackgroundScheduler()
 
 # Start the bot runner as a scheduled task
 def start_bot_scheduler():
-    exchange_client = ExchangeClient(api_key=os.getenv("EXCHANGE_API_KEY"), api_secret=os.getenv("EXCHANGE_API_SECRET"))
+    api_key = os.getenv("EXCHANGE_API_KEY")
+    api_secret = os.getenv("EXCHANGE_API_SECRET")
+    if not api_key or not api_secret:
+        raise RuntimeError("EXCHANGE_API_KEY and/or EXCHANGE_API_SECRET environment variables are not set")
+
+    exchange_client = ExchangeClient(api_key=api_key, api_secret=api_secret)
     scheduler.add_job(run_bot, "interval", minutes=1, args=[supabase, exchange_client])
     scheduler.start()
 
@@ -443,3 +445,15 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     scheduler.shutdown()
+
+# --------------------------
+# Global Exception Handling
+# --------------------------
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    print(f"Unhandled exception: {exc}")
+    return JSONResponse(
+        content={"error": "An unexpected error occurred. Please try again later."},
+        status_code=500
+    )
