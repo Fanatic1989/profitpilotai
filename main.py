@@ -12,8 +12,13 @@ from passlib.context import CryptContext
 from supabase import create_client
 from apscheduler.schedulers.background import BackgroundScheduler
 from bot.engine import run_bot, ExchangeClient  # Updated import path
-import websockets  # Added for WebSocket support
+import websockets
 import requests  # Ensure this is imported globally
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -148,8 +153,8 @@ async def get_deriv_pairs() -> List[str]:
                             symbols.append(name)
                     return sorted(set(symbols))
     except Exception as e:
-        print(f"WebSocket error fetching pairs: {e}")
-    return all_pairs_flat()  # fallback to static list
+        logger.error(f"WebSocket error fetching pairs: {e}")
+    return all_pairs_flat()  # Fallback to static list
 
 # Helper function to map user-friendly pairs to Deriv API symbols
 def map_to_deriv_symbols(pairs: List[str]) -> List[str]:
@@ -167,14 +172,16 @@ async def fetch_market_data(symbol: str):
             await ws.send(json.dumps(subscribe_message))
             response = await asyncio.wait_for(ws.recv(), timeout=10)
             data = json.loads(response)
-            
-            if "error" in data:
+
+            if "error" in 
                 raise ValueError(f"Error fetching data for symbol {symbol}: {data['error']['message']}")
-            
+
             tick = data.get("tick", {})
             return {"close": tick.get("ask")}
+    except asyncio.TimeoutError:
+        raise ValueError(f"Timeout while fetching data for symbol {symbol}.")
     except Exception as e:
-        print(f"Error fetching market data for symbol {symbol}: {e}")
+        logger.error(f"Error fetching market data for symbol {symbol}: {e}")
         raise
 
 # --------------------------
@@ -318,8 +325,7 @@ async def admin_add_user(
         return RedirectResponse(url="/admin", status_code=303)
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error adding user: {e}")
         return JSONResponse(
             content={"error": f"Internal Server Error: {str(e)}"},
             status_code=500
@@ -386,8 +392,11 @@ async def price(symbol: str):
         price_val = float(data["close"])
         
         return {"symbol": sym, "price": price_val}
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Symbol '{symbol}' not found.")
     except Exception as e:
-        return JSONResponse({"error": f"Failed to fetch price: {e}"}, status_code=500)
+        logger.error(f"Error fetching price for symbol '{symbol}': {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch price: {str(e)}")
 
 @app.post("/bot/{action}")
 async def bot_control(action: str, request: Request):
@@ -440,6 +449,7 @@ async def execute_trade(login_id: str):
             return {"symbol": symbol, "signal": signal, "price": last_close}
         return {"symbol": symbol, "signal": signal}
     except Exception as e:
+        logger.error(f"Trading error for user {login_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Trading error: {str(e)}")
 
 # --------------------------
@@ -455,14 +465,15 @@ def start_bot_scheduler():
     if not deriv_api_token:
         raise RuntimeError("DERIV_API_TOKEN environment variable is not set")
 
-    exchange_client = ExchangeClient(api_token=deriv_api_token)  # Fixed parameter name to match ExchangeClient's API
+    exchange_client = ExchangeClient(token=deriv_api_token)  # Fixed parameter name
     scheduler.add_job(run_bot, "interval", minutes=1, args=[supabase, exchange_client])
     scheduler.start()
 
 # Hook into FastAPI's lifecycle events
 @app.on_event("startup")
 async def startup_event():
-    start_bot_scheduler()
+    if not scheduler.running:
+        start_bot_scheduler()
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -474,7 +485,7 @@ async def shutdown_event():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    print(f"Unhandled exception: {exc}")
+    logger.error(f"Unhandled exception: {exc}")
     return JSONResponse(
         content={"error": "An unexpected error occurred. Please try again later."},
         status_code=500
