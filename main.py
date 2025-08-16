@@ -168,8 +168,16 @@ async def fetch_market_data(symbol: str):
 
     try:
         async with websockets.connect(uri, ping_interval=None, close_timeout=5) as ws:
+            # Authenticate with Deriv API
+            await ws.send(json.dumps({"authorize": deriv_api_token}))
+            auth_response = await asyncio.wait_for(ws.recv(), timeout=10)
+            auth_data = json.loads(auth_response)
+
+            if "error" in auth_data:
+                raise ValueError(f"Authorization failed: {auth_data['error']['message']}")
+
+            # Subscribe to ticks for the symbol
             subscribe_message = {
-                "authorize": deriv_api_token,  # Include the token for authorization
                 "ticks": symbol,
                 "subscribe": 1
             }
