@@ -12,6 +12,7 @@ from passlib.context import CryptContext
 from supabase import create_client
 from apscheduler.schedulers.background import BackgroundScheduler
 from bot.engine import run_bot, ExchangeClient  # Updated import path
+import websockets  # Added for WebSocket support
 import requests  # Added to resolve "name 'requests' is not defined" error
 
 # Initialize FastAPI app
@@ -74,15 +75,15 @@ DERIV_SYMBOL_MAP = {
     "AUD/JPY": "frxAUDJPY",
     "EUR/GBP": "frxEURGBP",
     "EUR/JPY": "frxEURJPY",
-    "Volatility 10 Index": "volatility_10_index",
-    "Volatility 25 Index": "volatility_25_index",
-    "Volatility 50 Index": "volatility_50_index",
-    "Volatility 75 Index": "volatility_75_index",
-    "Volatility 100 Index": "volatility_100_index",
-    "Crash 1000 Index": "crash_1000_index",
-    "Crash 500 Index": "crash_500_index",
-    "Boom 1000 Index": "boom_1000_index",
-    "Boom 500 Index": "boom_500_index"
+    "Volatility 10 Index": "R_10",
+    "Volatility 25 Index": "R_25",
+    "Volatility 50 Index": "R_50",
+    "Volatility 75 Index": "R_75",
+    "Volatility 100 Index": "R_100",
+    "Crash 1000 Index": "CRASH_1000",
+    "Crash 500 Index": "CRASH_500",
+    "Boom 1000 Index": "BOOM_1000",
+    "Boom 500 Index": "BOOM_500"
 }
 
 def all_pairs_flat() -> List[str]:
@@ -148,11 +149,33 @@ async def get_deriv_pairs() -> List[str]:
                     return sorted(set(symbols))
     except Exception as e:
         print(f"WebSocket error fetching pairs: {e}")
-    return []  # fallback to static list
+    return all_pairs_flat()  # fallback to static list
 
 # Helper function to map user-friendly pairs to Deriv API symbols
 def map_to_deriv_symbols(pairs: List[str]) -> List[str]:
     return [DERIV_SYMBOL_MAP.get(pair, pair) for pair in pairs]
+
+# Fetch market data for a given symbol
+async def fetch_market_data(symbol: str):
+    uri = "wss://ws.derivws.com/websockets/v3?app_id=1089"
+    try:
+        async with websockets.connect(uri, ping_interval=None, close_timeout=5) as ws:
+            subscribe_message = {
+                "ticks": symbol,
+                "subscribe": 1
+            }
+            await ws.send(json.dumps(subscribe_message))
+            response = await asyncio.wait_for(ws.recv(), timeout=10)
+            data = json.loads(response)
+            
+            if "error" in data:
+                raise ValueError(f"Error fetching data for symbol {symbol}: {data['error']['message']}")
+            
+            tick = data.get("tick", {})
+            return {"close": tick.get("ask")}
+    except Exception as e:
+        print(f"Error fetching market data for symbol {symbol}: {e}")
+        raise
 
 # --------------------------
 # Routes
@@ -359,8 +382,8 @@ async def price(symbol: str):
         sym = unquote(deriv_symbol)
         
         # Fetch market data for the mapped symbol
-        df = fetch_market_data(symbol=sym)
-        price_val = float(df.iloc[-1]["close"])
+        data = await fetch_market_data(sym)
+        price_val = float(data["close"])
         
         return {"symbol": sym, "price": price_val}
     except Exception as e:
@@ -428,12 +451,11 @@ scheduler = BackgroundScheduler()
 
 # Start the bot runner as a scheduled task
 def start_bot_scheduler():
-    api_key = os.getenv("EXCHANGE_API_KEY")
-    api_secret = os.getenv("EXCHANGE_API_SECRET")
-    if not api_key or not api_secret:
-        raise RuntimeError("EXCHANGE_API_KEY and/or EXCHANGE_API_SECRET environment variables are not set")
+    deriv_api_token = os.getenv("DERIV_API_TOKEN")
+    if not deriv_api_token:
+        raise RuntimeError("DERIV_API_TOKEN environment variable is not set")
 
-    exchange_client = ExchangeClient(api_key=api_key, api_secret=api_secret)
+    exchange_client = ExchangeClient(api_token=deriv_api_token)
     scheduler.add_job(run_bot, "interval", minutes=1, args=[supabase, exchange_client])
     scheduler.start()
 
