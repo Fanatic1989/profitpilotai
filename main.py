@@ -13,7 +13,7 @@ from supabase import create_client
 from apscheduler.schedulers.background import BackgroundScheduler
 from bot.engine import run_bot, ExchangeClient  # Updated import path
 import websockets  # Added for WebSocket support
-import requests  # Added to resolve "name 'requests' is not defined" error
+import requests  # Ensure this is imported globally
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -455,7 +455,7 @@ def start_bot_scheduler():
     if not deriv_api_token:
         raise RuntimeError("DERIV_API_TOKEN environment variable is not set")
 
-    exchange_client = ExchangeClient(api_token=deriv_api_token)
+    exchange_client = ExchangeClient(token=deriv_api_token)  # Fixed parameter name to match ExchangeClient's API
     scheduler.add_job(run_bot, "interval", minutes=1, args=[supabase, exchange_client])
     scheduler.start()
 
