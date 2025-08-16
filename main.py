@@ -11,7 +11,6 @@ from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
 from supabase import create_client
 from apscheduler.schedulers.background import BackgroundScheduler
-from bot.engine import run_bot, ExchangeClient  # Updated import path
 import websockets
 import requests  # Ensure this is imported globally
 import logging
@@ -163,9 +162,14 @@ def map_to_deriv_symbols(pairs: List[str]) -> List[str]:
 # Fetch market data for a given symbol
 async def fetch_market_data(symbol: str):
     uri = "wss://ws.derivws.com/websockets/v3?app_id=96594"  # Updated App ID
+    deriv_api_token = os.getenv("DERIV_API_TOKEN")
+    if not deriv_api_token:
+        raise RuntimeError("DERIV_API_TOKEN environment variable is not set")
+
     try:
         async with websockets.connect(uri, ping_interval=None, close_timeout=5) as ws:
             subscribe_message = {
+                "authorize": deriv_api_token,  # Include the token for authorization
                 "ticks": symbol,
                 "subscribe": 1
             }
@@ -466,8 +470,8 @@ def start_bot_scheduler():
     if not deriv_api_token:
         raise RuntimeError("DERIV_API_TOKEN environment variable is not set")
 
-    exchange_client = ExchangeClient(token=deriv_api_token)  # Fixed parameter name
-    scheduler.add_job(run_bot, "interval", minutes=1, args=[supabase, exchange_client])
+    # Pass only the token to the bot runner
+    scheduler.add_job(run_bot, "interval", minutes=1, args=[supabase, deriv_api_token])
     scheduler.start()
 
 # Hook into FastAPI's lifecycle events
