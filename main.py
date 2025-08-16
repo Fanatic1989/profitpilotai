@@ -133,7 +133,7 @@ def _get_username_from_cookie(request: Request) -> Optional[str]:
 
 # Fetch Deriv trading pairs (defensive networking)
 async def get_deriv_pairs() -> List[str]:
-    uri = "wss://ws.derivws.com/websockets/v3?app_id=1089"
+    uri = "wss://ws.derivws.com/websockets/v3?app_id=96594"  # Updated App ID
     try:
         async with websockets.connect(uri, ping_interval=None, close_timeout=5) as ws:
             await ws.send(json.dumps({"active_symbols": "brief", "product_type": "basic"}))
@@ -157,7 +157,7 @@ def map_to_deriv_symbols(pairs: List[str]) -> List[str]:
 
 # Fetch market data for a given symbol
 async def fetch_market_data(symbol: str):
-    uri = "wss://ws.derivws.com/websockets/v3?app_id=1089"
+    uri = "wss://ws.derivws.com/websockets/v3?app_id=96594"  # Updated App ID
     try:
         async with websockets.connect(uri, ping_interval=None, close_timeout=5) as ws:
             subscribe_message = {
