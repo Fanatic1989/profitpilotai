@@ -1,39 +1,24 @@
-import React from 'react'
-import { Routes, Route, Link, Navigate } from 'react-router-dom'
-import Login from './pages/Login'
-import UserDashboard from './pages/UserDashboard'
-import AdminDashboard from './pages/AdminDashboard'
-import ProtectedRoute from './components/ProtectedRoute'
-import { useAuth } from './context/AuthContext'
+// frontend/src/App.jsx
+import React from "react";
+import Settings from "./components/Settings";
+import TradeLogs from "./components/TradeLogs";
+import SelfLearningPanel from "./components/SelfLearningPanel";
 
 export default function App() {
-  const { user, logout } = useAuth()
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: 16 }}>
-      <nav style={{ display:'flex', gap:12, marginBottom: 16 }}>
-        <Link to="/">Home</Link>
-        {!user && <Link to="/login">Login</Link>}
-        {user && <Link to="/dashboard">Dashboard</Link>}
-        {user && <Link to="/admin">Admin</Link>}
-        {user && <button onClick={logout}>Logout</button>}
-      </nav>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow p-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <h1 className="text-xl font-bold">ProfitPilotAI — Demo</h1>
+          <div className="text-sm text-gray-500">Demo local mode</div>
+        </div>
+      </header>
 
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={!user ? <Login/> : <Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<ProtectedRoute><UserDashboard/></ProtectedRoute>} />
-        <Route path="/admin" element={<ProtectedRoute><AdminDashboard/></ProtectedRoute>} />
-        <Route path="*" element={<h3>Not found</h3>} />
-      </Routes>
+      <main className="max-w-6xl mx-auto py-8 space-y-8">
+        <Settings />
+        <SelfLearningPanel />
+        <TradeLogs />
+      </main>
     </div>
-  )
-}
-
-function Home(){
-  return (
-    <div>
-      <h1>ProfitPilotAI</h1>
-      <p>Full-stack trading assistant. Login to continue.</p>
-    </div>
-  )
+  );
 }
