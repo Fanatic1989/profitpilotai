@@ -1,0 +1,21 @@
+# render.yaml
+services:
+  - type: web
+    name: profitpilotai
+    env: python
+    region: oregon
+    repo: your-github-username/your-repo-name
+    branch: main
+    buildCommand: >
+      bash -lc "
+      pip install -r backend/requirements.txt &&
+      cd frontend &&
+      npm ci &&
+      npm run build
+      "
+    startCommand: "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: MODEL_DIR
+        value: "./backend/models"
