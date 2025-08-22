@@ -1,62 +1,62 @@
 """
-auth_utils.py
-Simple auth utilities for ProfitPilotAI:
-- password hashing / verification (bcrypt)
-- token creation/verification (JWT)
-- a tiny decorator for FastAPI endpoints (if you wire it in main.py)
-Note: In production, rotate secrets, use HTTPS, and secure cookies/headers.
+backend/auth_utils.py
+
+JWT + password hashing helpers and a FastAPI dependency to require auth.
+- Uses bcrypt for password hashing and PyJWT for tokens.
+- In production, set SECRET_KEY via environment variable (do NOT hardcode).
 """
 
 import os
-import time
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-from functools import wraps
 
 import bcrypt
 import jwt
-from fastapi import HTTPException, Security
-from fastapi.security.api_key import APIKeyHeader
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-# Config: override via environment variables
-JWT_SECRET = os.getenv("JWT_SECRET", "change-this-secret")
-JWT_ALGORITHM = os.getenv("JWT_ALGO", "HS256")
-JWT_EXP_SECONDS = int(os.getenv("JWT_EXP_SECONDS", 3600 * 24))  # 24h
+SECRET_KEY = os.getenv("JWT_SECRET", "change-this-secret")
+ALGORITHM = os.getenv("JWT_ALGO", "HS256")
+DEFAULT_EXPIRES_SECONDS = int(os.getenv("JWT_EXP_SECONDS", "86400"))  # 24h
 
-api_key_scheme = APIKeyHeader(name="Authorization", auto_error=False)
+security = HTTPBearer(auto_error=False)
 
 
-def hash_password(plain_password: str) -> str:
-    if isinstance(plain_password, str):
-        plain_password = plain_password.encode("utf-8")
-    hashed = bcrypt.hashpw(plain_password, bcrypt.gensalt())
+def hash_password(password: str) -> str:
+    if isinstance(password, str):
+        password = password.encode("utf-8")
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password, salt)
     return hashed.decode("utf-8")
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    if isinstance(plain_password, str):
-        plain_password = plain_password.encode("utf-8")
-    if isinstance(hashed_password, str):
-        hashed_password = hashed_password.encode("utf-8")
+def verify_password(password: str, hashed: str) -> bool:
+    if isinstance(password, str):
+        password = password.encode("utf-8")
+    if isinstance(hashed, str):
+        hashed = hashed.encode("utf-8")
     try:
-        return bcrypt.checkpw(plain_password, hashed_password)
-    except ValueError:
+        return bcrypt.checkpw(password, hashed)
+    except Exception:
         return False
 
 
-def create_jwt_token(subject: str, extra: Optional[Dict[str, Any]] = None, exp_seconds: Optional[int] = None) -> str:
-    now = int(time.time())
-    exp = now + (exp_seconds if exp_seconds is not None else JWT_EXP_SECONDS)
-    payload = {"sub": subject, "iat": now, "exp": exp}
+def create_jwt_token(subject: str, expires_seconds: Optional[int] = None, extra: Optional[Dict[str, Any]] = None) -> str:
+    now = datetime.utcnow()
+    exp = now + timedelta(seconds=(expires_seconds or DEFAULT_EXPIRES_SECONDS))
+    payload = {"sub": subject, "iat": int(now.timestamp()), "exp": int(exp.timestamp())}
     if extra:
         payload.update(extra)
-    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-    # jwt.encode returns str in pyjwt>=2.x
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    # pyjwt returns str in v2+, bytes in v1; ensure str
+    if isinstance(token, bytes):
+        token = token.decode("utf-8")
     return token
 
 
 def decode_jwt_token(token: str) -> Dict[str, Any]:
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
@@ -64,26 +64,14 @@ def decode_jwt_token(token: str) -> Dict[str, Any]:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-def require_authorization_header(api_key: Optional[str] = None):
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
-    Helper for FastAPI dependencies. Accepts header value like "Bearer <token>" or the token itself.
+    FastAPI dependency: returns decoded token payload if valid, otherwise raises 401.
+    Accepts Bearer tokens.
     """
-    if not api_key:
-        raise HTTPException(status_code=401, detail="Missing Authorization header")
-    if api_key.startswith("Bearer "):
-        api_key = api_key[7:]
-    return decode_jwt_token(api_key)
-
-
-# A tiny decorator for non-FastAPI use (function-level)
-def require_jwt(func):
-    @wraps(func)
-    def wrapper(token: str = None, *args, **kwargs):
-        if not token:
-            raise HTTPException(status_code=401, detail="Missing token")
-        if token.startswith("Bearer "):
-            token = token[7:]
-        decode_jwt_token(token)
-        return func(*args, **kwargs)
-
-    return wrapper
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Missing credentials")
+    token = credentials.credentials
+    if token.lower().startswith("bearer "):
+        token = token[7:]
+    return decode_jwt_token(token)
