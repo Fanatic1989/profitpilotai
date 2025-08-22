@@ -1,295 +1,103 @@
-#!/usr/bin/env python3
-# main.py — FastAPI backend for ProfitPilotAI React SPA (FULL)
+"""
+backend/main.py
 
-from __future__ import annotations
+FastAPI app tying together strategy_service, trading_service, and self_learning.
+Provides routes:
+- POST /trade         -> run strategy and optionally execute (dry_run default true)
+- POST /train         -> train incremental model with provided features+labels
+- POST /predict       -> predict score for a feature vector
+- GET  /orders        -> list in-memory orders
+- GET  /portfolio     -> list in-memory portfolio
+- GET  /strategies    -> list available strategies
 
-import os, json, asyncio
-from typing import Optional, List, Dict, Any
-from datetime import datetime, timedelta
+Auth is optional for dev; use Authorization: Bearer <token> to access protected endpoints.
+"""
 
-from fastapi import FastAPI, Request, HTTPException, Depends, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+import os
+import uvicorn
+from typing import Dict, Any, List
+from fastapi import FastAPI, HTTPException, Body, Depends, Query
 from pydantic import BaseModel
-from dotenv import load_dotenv
-import jwt
 
-from supabase_utils import (
-    init_supabase,
-    authenticate_user,
-    create_user,
-    update_user,
-    delete_user,
-    list_users,
-    get_user_by_login_id,
-    get_strategy_configs,
-    upsert_strategy_config,
-    fetch_pairs_sample,
-    save_ai_policy,
-    load_ai_policy,
-    log_trade,
-)
+from .strategy_service import default_strategy_manager
+from .trading_service import evaluate_and_trade, list_orders, get_portfolio
+from .self_learning import train_on_batch, predict_from_features
+from .auth_utils import get_current_user
 
-# -------------------------
-# Environment & globals
-# -------------------------
-load_dotenv()
-JWT_SECRET = os.getenv("JWT_SECRET", "change-me")
-JWT_ALG = "HS256"
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",")]
+app = FastAPI(title="ProfitPilotAI Backend", version="0.1")
 
-supabase = init_supabase(SUPABASE_URL, SUPABASE_KEY)
+# Pydantic models
+class TradeRequest(BaseModel):
+    strategy: str
+    market_state: Dict[str, Any]
+    dry_run: bool = True
 
-app = FastAPI(title="ProfitPilotAI API")
+class TrainRequest(BaseModel):
+    X: List[List[float]]
+    y: List[float]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ORIGINS if CORS_ORIGINS != ["*"] else ["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+class PredictRequest(BaseModel):
+    features: List[float]
 
-# -------------------------
-# Models
-# -------------------------
-class LoginBody(BaseModel):
-    login_id: str
-    password: str
 
-class RegisterBody(BaseModel):
-    login_id: str
-    password: str
-    deriv_api_token: Optional[str] = ""
-    account_type: Optional[str] = "basic"
-
-class UpdateUserBody(BaseModel):
-    login_id: str
-    password: Optional[str] = None
-    deriv_api_token: Optional[str] = None
-    preferred_strategy: Optional[str] = None
-    is_active: Optional[bool] = None
-    max_trade_amount: Optional[float] = None
-
-class StrategyBody(BaseModel):
-    strategy_name: str
-    base_amount: float = 1
-    multiplier: float = 2
-    max_steps: int = 5
-    active: bool = True
-
-class SettingsBody(BaseModel):
-    deriv_api_token: Optional[str] = None
-    account_mode: Optional[str] = "demo"  # "demo" or "real"
-    strategy: Optional[str] = "scalping"
-    trading_type: Optional[str] = "forex"
-    selected_pairs: Optional[List[str]] = []
-
-# -------------------------
-# Auth helpers
-# -------------------------
-def create_access_token(payload: Dict[str, Any], hours: int = 12) -> str:
-    to_enc = payload.copy()
-    to_enc["exp"] = datetime.utcnow() + timedelta(hours=hours)
-    return jwt.encode(to_enc, JWT_SECRET, algorithm=JWT_ALG)
-
-def get_current_user(request: Request) -> Dict[str, Any]:
-    auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
-        raise HTTPException(401, "Missing or invalid token")
-    token = auth.split(" ", 1)[1]
-    try:
-        data = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
-        return data
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(401, "Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(401, "Invalid token")
-
-# -------------------------
-# Health (incl. HEAD for UptimeRobot)
-# -------------------------
-@app.head("/health")
 @app.get("/health")
-async def health():
-    return {"status": "ok", "ts": datetime.utcnow().isoformat()}
+def health():
+    return {"status": "ok", "service": "profitpilotai"}
 
-# -------------------------
-# Basic index (for sanity check)
-# -------------------------
-@app.get("/")
-async def root():
-    return {"app": "ProfitPilotAI API", "status": "running"}
 
-# -------------------------
-# Auth routes
-# -------------------------
-@app.post("/auth/register")
-async def register(body: RegisterBody):
+@app.post("/trade")
+async def trade(req: TradeRequest, user=Depends(get_current_user)):
+    """
+    Evaluate strategy and execute if signal present. Requires auth dependency by default.
+    """
+    strategy = req.strategy
+    if strategy not in default_strategy_manager.list_strategies():
+        raise HTTPException(status_code=400, detail="Strategy not found")
+    res = await evaluate_and_trade(strategy, req.market_state, dry_run=req.dry_run)
+    # optionally log to supabase in supabase_utils (omitted here)
+    return res
+
+
+@app.post("/train")
+def train(req: TrainRequest, user=Depends(get_current_user)):
+    """
+    Train incremental model on provided batch (X,y). Returns summary.
+    """
+    if not req.X or not req.y or len(req.X) != len(req.y):
+        raise HTTPException(status_code=400, detail="Invalid training batch")
+    train_on_batch(req.X, req.y)
+    return {"status": "trained", "samples": len(req.X)}
+
+
+@app.post("/predict")
+def predict(req: PredictRequest, user=Depends(get_current_user)):
+    """
+    Predict a numeric score given feature vector.
+    """
+    if not req.features:
+        raise HTTPException(status_code=400, detail="Empty features")
     try:
-        user = create_user(
-            supabase,
-            login_id=body.login_id,
-            password=body.password,
-            deriv_api_token=body.deriv_api_token or "",
-            account_type=body.account_type or "basic",
-        )
-        return {"ok": True, "user": {"login_id": user["login_id"]}}
+        score = predict_from_features(req.features)
+        return {"score": float(score)}
     except Exception as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/auth/login")
-async def login(body: LoginBody):
-    user = authenticate_user(supabase, body.login_id, body.password)
-    if not user:
-        raise HTTPException(401, "Invalid credentials")
-    token = create_access_token({"login_id": user["login_id"]})
-    return {"access_token": token, "token_type": "bearer"}
 
-@app.get("/auth/me")
-async def me(current=Depends(get_current_user)):
-    login_id = current["login_id"]
-    user = get_user_by_login_id(supabase, login_id)
-    if not user:
-        raise HTTPException(404, "User not found")
-    # Do not leak password hash
-    user.pop("password", None)
-    return {"user": user}
+@app.get("/orders")
+def api_orders(user=Depends(get_current_user)):
+    return {"orders": list_orders()}
 
-# -------------------------
-# Admin routes (protect with JWT; you can add roles later)
-# -------------------------
-@app.get("/admin/users")
-async def admin_list_users(current=Depends(get_current_user)):
-    users = list_users(supabase)
-    return {"users": users}
 
-class AdminCreateUser(BaseModel):
-    login_id: str
-    password: str
-    deriv_api_token: Optional[str] = ""
-    account_type: Optional[str] = "basic"
+@app.get("/portfolio")
+def api_portfolio(user=Depends(get_current_user)):
+    return {"portfolio": get_portfolio()}
 
-@app.post("/admin/users")
-async def admin_create_user(body: AdminCreateUser, current=Depends(get_current_user)):
-    try:
-        u = create_user(supabase, body.login_id, body.password, body.deriv_api_token, body.account_type)
-        return {"ok": True, "user": {"login_id": u["login_id"]}}
-    except Exception as e:
-        raise HTTPException(400, str(e))
 
-@app.put("/admin/users/{login_id}")
-async def admin_update_user(login_id: str, body: UpdateUserBody, current=Depends(get_current_user)):
-    updates = {k: v for k, v in body.dict().items() if v is not None and k != "login_id"}
-    try:
-        updated = update_user(supabase, login_id, updates)
-        updated.pop("password", None)
-        return {"ok": True, "user": updated}
-    except Exception as e:
-        raise HTTPException(400, str(e))
+@app.get("/strategies")
+def api_strategies():
+    return {"strategies": default_strategy_manager.list_strategies()}
 
-@app.delete("/admin/users/{login_id}")
-async def admin_delete_user(login_id: str, current=Depends(get_current_user)):
-    try:
-        delete_user(supabase, login_id)
-        return {"ok": True}
-    except Exception as e:
-        raise HTTPException(400, str(e))
 
-# -------------------------
-# User settings & bot controls
-# -------------------------
-@app.get("/pairs")
-async def get_pairs(current=Depends(get_current_user)):
-    return {"pairs": fetch_pairs_sample()}
-
-@app.post("/user/settings")
-async def save_settings(body: SettingsBody, current=Depends(get_current_user)):
-    login_id = current["login_id"]
-    updates: Dict[str, Any] = {}
-    if body.deriv_api_token is not None:
-        updates["deriv_api_token"] = body.deriv_api_token
-    if body.strategy is not None:
-        updates["preferred_strategy"] = body.strategy
-    if body.account_mode is not None:
-        updates["account_type"] = body.account_mode  # storing simple mode tag
-    if body.trading_type is not None:
-        updates["trading_type"] = body.trading_type
-    if body.selected_pairs is not None:
-        updates["selected_pairs"] = body.selected_pairs
-    if not updates:
-        return {"ok": True}
-    updated = update_user(supabase, login_id, updates)
-    updated.pop("password", None)
-    return {"ok": True, "user": updated}
-
-# Simulated bot state (in-memory) — replace with your runner
-BOT_STATE: Dict[str, Dict[str, Any]] = {}  # login_id -> {status, last_event}
-
-@app.post("/bot/start")
-async def bot_start(current=Depends(get_current_user)):
-    login_id = current["login_id"]
-    BOT_STATE[login_id] = {"status": "active", "last_event": datetime.utcnow().isoformat()}
-    return {"ok": True, "status": BOT_STATE[login_id]["status"]}
-
-@app.post("/bot/pause")
-async def bot_pause(current=Depends(get_current_user)):
-    login_id = current["login_id"]
-    if login_id not in BOT_STATE:
-        BOT_STATE[login_id] = {}
-    BOT_STATE[login_id]["status"] = "paused"
-    BOT_STATE[login_id]["last_event"] = datetime.utcnow().isoformat()
-    return {"ok": True, "status": "paused"}
-
-@app.post("/bot/stop")
-async def bot_stop(current=Depends(get_current_user)):
-    login_id = current["login_id"]
-    BOT_STATE[login_id] = {"status": "inactive", "last_event": datetime.utcnow().isoformat()}
-    return {"ok": True, "status": "inactive"}
-
-# -------------------------
-# Strategy config endpoints
-# -------------------------
-@app.get("/strategy/configs")
-async def get_configs(current=Depends(get_current_user)):
-    login_id = current["login_id"]
-    return {"configs": get_strategy_configs(supabase, login_id)}
-
-@app.post("/strategy/configs")
-async def add_config(body: StrategyBody, current=Depends(get_current_user)):
-    login_id = current["login_id"]
-    cfg = upsert_strategy_config(supabase, login_id, body.dict())
-    return {"ok": True, "config": cfg}
-
-# -------------------------
-# WebSocket — status stream
-# -------------------------
-clients: Dict[str, List[WebSocket]] = {}
-
-@app.websocket("/ws/{login_id}")
-async def ws_status(websocket: WebSocket, login_id: str):
-    await websocket.accept()
-    clients.setdefault(login_id, []).append(websocket)
-    try:
-        while True:
-            await asyncio.sleep(5)
-            state = BOT_STATE.get(login_id, {"status": "inactive"})
-            await websocket.send_json({
-                "type": "status",
-                "login_id": login_id,
-                "status": state.get("status", "inactive"),
-                "ts": datetime.utcnow().isoformat()
-            })
-    except WebSocketDisconnect:
-        pass
-    finally:
-        clients[login_id].remove(websocket)
-
-# -------------------------
-# Error handler
-# -------------------------
-@app.exception_handler(Exception)
-async def global_err(request: Request, exc: Exception):
-    return JSONResponse(status_code=500, content={"error": str(exc)})
+if __name__ == "__main__":
+    # for dev: run with `python backend/main.py`
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=True)
