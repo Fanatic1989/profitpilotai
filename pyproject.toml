@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "profitpilotai"
 version = "0.1.0"
-description = "ProfitPilotAI - FastAPI backend with Supabase, Telegram Bot, and Deriv WebSocket"
-authors = ["Your Name <your-email@example.com>"]
+description = "ProfitPilotAI: Automated Trading Assistant with Supabase and Deriv WebSocket integration"
+authors = ["Chris <your-email@example.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -12,13 +12,16 @@ uvicorn = "0.30.1"
 supabase = "2.4.0"
 python-dotenv = "1.0.1"
 requests = "2.32.3"
-httpx = "0.27.0"
 aiohttp = "3.9.5"
+websockets = "12.0"
 pandas = "2.2.2"
 numpy = "1.26.4"
 python-telegram-bot = "21.4"
-websockets = "12.0"
-loguru = "0.7.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+black = "^24.0.0"
+isort = "^5.13.0"
 
 [build-system]
 requires = ["poetry-core"]
