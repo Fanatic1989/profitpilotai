@@ -8,6 +8,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 jinja2 = "^3.1.4"
 python-multipart = "^0.0.9"
+jinja2 = "^3.1.4"
+python-multipart = "^0.0.9"
 python = "^3.11"  # Ensure Python 3.11 is used
 fastapi = "0.111.0"  # Latest stable FastAPI version
 uvicorn = "0.30.1"  # ASGI server for FastAPI
