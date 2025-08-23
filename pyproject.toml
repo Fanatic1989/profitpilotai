@@ -16,7 +16,6 @@ httpx = ">=0.24,<0.26"  # Compatible version for supabase
 aiohttp = "3.9.5"  # Async HTTP client
 pandas = "2.2.2"  # Data manipulation library
 numpy = "1.26.4"  # Numerical computing library
-python-telegram-bot = "20.0"  # Downgraded to match httpx<0.26
 websockets = "12.0"  # WebSocket support
 loguru = "0.7.2"  # Logging library
 
