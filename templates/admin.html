@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Admin • ProfitPilotAI</title>
+<link rel="stylesheet" href="/static/style.css">
+</head><body>
+<header class="topbar">
+  <div>ProfitPilotAI • Admin</div>
+  <nav><a href="/logout">Logout</a></nav>
+</header>
+<main class="container">
+  <section class="panel">
+    <h2>Overview</h2>
+    <p>Status: <strong>Online</strong></p>
+    <p>Health: <code>{{ health.status }}</code></p>
+  </section>
+  <section class="panel">
+    <h2>Quick Actions</h2>
+    <ul>
+      <li><a href="/docs" target="_blank">Open API Docs</a></li>
+      <li><a href="/health" target="_blank">Check Health JSON</a></li>
+    </ul>
+  </section>
+</main>
+</body></html>
