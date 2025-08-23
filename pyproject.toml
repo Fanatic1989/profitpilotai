@@ -10,7 +10,7 @@ echo "python-3.11.9" > runtime.txt
 echo "✅ Checking for pyproject.toml..."
 if [ ! -f pyproject.toml ]; then
     echo "❌ pyproject.toml missing. Creating..."
-    cat > pyproject.toml << 'EOT'
+    cat <<EOT > pyproject.toml
 [tool.poetry]
 name = "profitpilotai"
 version = "0.1.0"
