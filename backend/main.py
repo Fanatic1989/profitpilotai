@@ -35,10 +35,21 @@ def login_page(request: Request):
 
 @app.post("/login")
 def login(request: Request, username: str = Form(...), password: str = Form(...)):
+    # rate-limit by IP
+    ip = request.client.host if request.client else "unknown"
+    now = time()
+    window = FAILED_LOGINS.get(ip, [])
+    window = [t for t in window if now - t < WINDOW]
+    if len(window) >= MAX_ATTEMPTS:
+        return HTMLResponse("<h3>Too many attempts. Try again later.</h3>", status_code=429)
     if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
         request.session["auth_ok"] = True
+        # reset failures
+        ip = request.client.host if request.client else "unknown"
+        FAILED_LOGINS.pop(ip, None)
         request.session["user"] = username
         return RedirectResponse("/admin", status_code=302)
+    window.append(now); FAILED_LOGINS[ip] = window
     return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials"})
 
 @app.get("/logout")
@@ -108,6 +119,9 @@ def register_post(request: Request, email: str = Form(...), password: str = Form
         return templates.TemplateResponse("register.html", {"request": request, "error": f"Registration failed: {res}"})
     # Auto-login after registration
     request.session["auth_ok"] = True
+        # reset failures
+        ip = request.client.host if request.client else "unknown"
+        FAILED_LOGINS.pop(ip, None)
     request.session["user"] = email
     return RedirectResponse("/dashboard", status_code=302)
 
@@ -186,3 +200,7 @@ async def crypto_ipn(request: Request):
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
     return JSONResponse({"ok": True})
+
+FAILED_LOGINS = {}
+MAX_ATTEMPTS = 5
+WINDOW = 600  # 10 minutes
