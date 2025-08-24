@@ -141,3 +141,94 @@ def clear_attempts(ip: str):
         sb.table("auth_throttle").delete().eq("ip", ip).execute()
     except Exception:
         pass
+
+# ===== Admin helpers: grant/delete/list users =====
+def _find_user_by_identifier(identifier: str):
+    """Identifier can be email or login_id."""
+    sb = get_client();  assert sb
+    u = None
+    try:
+        u = sb.table("app_users").select("*").eq("email", identifier).single().execute().data
+    except Exception:
+        pass
+    if not u:
+        try:
+            u = sb.table("app_users").select("*").eq("login_id", identifier).single().execute().data
+        except Exception:
+            u = None
+    return u
+
+def grant_user(identifier: str, plan: str) -> bool:
+    """
+    plan: one of ['1w','1m','1y','lifetime']
+    - 1w => +7 days
+    - 1m => +30 days
+    - 1y => +365 days
+    - lifetime => status active, current_period_end NULL
+    """
+    sb = get_client();  assert sb
+    u = _find_user_by_identifier(identifier)
+    if not u: return False
+    plan = (plan or '').lower().strip()
+    if plan == 'lifetime':
+        try:
+            # upsert/ensure a row marked active with no expiry
+            last = sb.table("subscriptions").select("id").eq("user_id", u["id"]).order("created_at", desc=True).limit(1).execute().data
+            payload = {"user_id": u["id"], "status": "active", "provider": "admin", "external_id": None, "current_period_end": None}
+            if last:
+                sb.table("subscriptions").update(payload).eq("id", last[0]["id"]).execute()
+            else:
+                sb.table("subscriptions").insert(payload).execute()
+            return True
+        except Exception:
+            return False
+    days_map = {'1w':7, '1m':30, '1y':365}
+    days = days_map.get(plan)
+    if not days: return False
+    return add_days_from_current_end(u["id"], days=days) is not None
+
+def delete_user(identifier: str) -> bool:
+    """Delete user and cascade (subscriptions table has ON DELETE CASCADE)."""
+    sb = get_client();  assert sb
+    u = _find_user_by_identifier(identifier)
+    if not u: return False
+    try:
+        sb.table("app_users").delete().eq("id", u["id"]).execute()
+        return True
+    except Exception:
+        return False
+
+def list_active_users():
+    """
+    Return list of active users with expiry:
+    [{email, login_id, status, current_period_end}]
+    Active if status='active' and (expiry >= now OR expiry is null for lifetime).
+    """
+    sb = get_client();  assert sb
+    try:
+        users = sb.table("app_users").select("id,email,login_id").execute().data or []
+        # fetch latest sub per user
+        active = []
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        for u in users:
+            subs = sb.table("subscriptions").select("*").eq("user_id", u["id"]).order("created_at", desc=True).limit(1).execute().data
+            sub = subs[0] if subs else None
+            if not sub: 
+                continue
+            if (sub.get("status","").lower() != "active"):
+                continue
+            exp = sub.get("current_period_end")
+            if exp is None:
+                active.append({"email": u["email"], "login_id": u.get("login_id"), "status": "active", "current_period_end": None})
+            else:
+                try:
+                    dt = datetime.fromisoformat(exp.replace("Z",""))
+                    if dt.tzinfo is None: dt = dt.replace(tzinfo=timezone.utc)
+                    if dt >= now:
+                        active.append({"email": u["email"], "login_id": u.get("login_id"), "status": "active", "current_period_end": exp})
+                except Exception:
+                    pass
+        return active
+    except Exception:
+        return []
