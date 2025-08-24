@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.templating import Jinja2Templates
 import uvicorn
+from loguru import logger
 
 app = FastAPI(title="ProfitPilotAI", version="0.1")
 
@@ -38,7 +39,7 @@ def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/", status_code=302)
 
-@app.get("/admin")
+@app.get("/_admin")
 def admin_dashboard(request: Request):
     if not request.session.get("auth_ok"):
         return RedirectResponse("/", status_code=302)
@@ -51,3 +52,38 @@ def health():
 
 if __name__ == "__main__":
     uvicorn.run("backend.main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), reload=True)
+
+def _require_admin(request: Request):
+    if not request.session.get("auth_ok"):
+        raise HTTPException(status_code=404, detail="Not found")
+
+@app.head("/")
+def head_root():
+    return HTMLResponse("", status_code=200)
+
+# --- Admin dashboard + Supabase user management ---
+from .supabase_utils import grant_user, delete_user, list_active_users
+
+@app.get("/_admin")
+def admin_dashboard(request: Request):
+    _require_admin(request)
+    active = list_active_users()
+    users = active.get("data") if active.get("ok") else []
+    err = active.get("error") if not active.get("ok") else None
+    return templates.TemplateResponse("admin.html", {"request": request, "health": {"status":"ok"}, "users": users, "err": err})
+
+@app.post("/_admin/users/add")
+def admin_add_user(request: Request, email: str = Form(...), plan: str = Form(...)):
+    _require_admin(request)
+    res = grant_user(email, plan)
+    if not res.get("ok"):
+        logger.error("Add user failed: {}", res.get("error"))
+    return RedirectResponse("/_admin", status_code=302)
+
+@app.post("/_admin/users/delete")
+def admin_delete_user(request: Request, email: str = Form(...)):
+    _require_admin(request)
+    res = delete_user(email)
+    if not res.get("ok"):
+        logger.error("Delete user failed: {}", res.get("error"))
+    return RedirectResponse("/_admin", status_code=302)
