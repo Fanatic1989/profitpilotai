@@ -6,7 +6,12 @@
 </head><body>
 <header class="topbar">
   <div>ProfitPilotAI • Admin</div>
-  <nav><a href="/logout">Logout</a></nav>
+  <div class="header-right">
+    {% if users and users|length > 0 %}
+      <span class="badge active">Users: {{ users|length }}</span>
+    {% endif %}
+    <nav><a href="/logout">Logout</a></nav>
+  </div>
 </header>
 
 <main class="container">
