@@ -6,20 +6,6 @@ try:
     from supabase import create_client
 
 # --- httpx shim: accept `proxy=` kwarg and map to `proxies=` (fix gotrue>=2.9 with httpx<0.26) ---
-def _patch_httpx_proxy_kw():
-    try:
-        import httpx as _httpx
-        _orig_init = _httpx.Client.__init__
-        def _patched_init(self, *args, **kwargs):
-            if 'proxy' in kwargs and 'proxies' not in kwargs:
-                kwargs['proxies'] = kwargs.pop('proxy')
-            return _orig_init(self, *args, **kwargs)
-        # idempotent: only patch once
-        if getattr(_httpx.Client.__init__, '__name__', '') != '_patched_init':
-            _httpx.Client.__init__ = _patched_init
-    except Exception:
-        pass
-
 except Exception:
     create_client = None
 
