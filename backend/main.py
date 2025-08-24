@@ -314,3 +314,9 @@ def _debug_supabase():
     except Exception:
         err = None
     return {"url_present": bool(url), "key_present": bool(key), "key_masked": masked, "client_ok": ok, "last_error": err}
+
+
+@app.get("/login")
+def login_form(request: Request):
+    # show login page
+    return templates.TemplateResponse("login.html", {"request": request})
