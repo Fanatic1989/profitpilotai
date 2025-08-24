@@ -298,3 +298,14 @@ def admin_home(request: Request):
     if request.session.get("role") != "admin":
         return HTMLResponse("<h3>Forbidden</h3>", status_code=403)
     return templates.TemplateResponse("admin.html", {"request": request})
+
+
+@app.get("/_debug/supabase")
+def _debug_supabase():
+    import os
+    from .supabase_utils import get_client
+    url = os.getenv("SUPABASE_URL", "")
+    key = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SERVICE_KEY") or ""
+    masked = (key[:4] + "…" + key[-4:]) if key and len(key) > 12 else ("set" if key else "")
+    ok = bool(get_client())
+    return {"url_present": bool(url), "key_present": bool(key), "key_masked": masked, "client_ok": ok}
