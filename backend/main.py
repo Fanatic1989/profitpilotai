@@ -11,7 +11,6 @@ from .auth import create_user, verify_email_token, start_password_reset, finish_
 from fastapi import FastAPI, Request, Form, HTTPException, Depends
 from .nowpayments import create_invoice, verify_ipn_signature
 from .supabase_utils import get_client, add_days_from_current_end, get_user_and_latest_sub, is_subscription_active
-from .payments import create_checkout_session
 from .auth import create_user, get_user_by_email, verify_pwd, set_role_admin
 from datetime import datetime, timezone, timedelta
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
