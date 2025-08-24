@@ -6,10 +6,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from fastapi.templating import Jinja2Templates
 import uvicorn
 from .nowpayments import create_invoice, verify_ipn_signature
-from .supabase_utils import get_client
+from .supabase_utils import get_client, get_user_and_latest_sub, is_subscription_active
 from .payments import create_checkout_session
 from .auth import create_user, get_user_by_email, verify_pwd, set_role_admin
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi import FastAPI, Request, Form, HTTPException
 from loguru import logger
