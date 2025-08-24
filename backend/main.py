@@ -6,7 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from fastapi.templating import Jinja2Templates
 import uvicorn
 from .nowpayments import create_invoice, verify_ipn_signature
-from .supabase_utils import get_client, get_user_and_latest_sub, is_subscription_active
+from .supabase_utils import get_client, add_days_from_current_end, get_user_and_latest_sub, is_subscription_active
 from .payments import create_checkout_session
 from .auth import create_user, get_user_by_email, verify_pwd, set_role_admin
 from datetime import datetime, timezone, timedelta
@@ -186,19 +186,12 @@ async def crypto_ipn(request: Request):
         if not sb:
             return JSONResponse({"ok": False, "error": "Supabase not configured"}, status_code=500)
         try:
-            u = sb.table("app_users").select("id").eq("email", email).single().execute().data
-            # upsert a subscription row
-            sb.table("subscriptions").upsert({
-                "user_id": u["id"],
-                "status": "active",
-                "stripe_customer_id": None,
-                "stripe_subscription_id": f"np_{invoice_id}",
-                "current_period_end": None  # crypto plan could be treated as lifetime or handled manually
-            }, on_conflict="stripe_subscription_id").execute()
+            u = sb.table("app_users").select("id,email").eq("email", email).single().execute().data
+            # Auto-extend 30 days from later of (now, current end)
+            add_days_from_current_end(u["id"], days=30)
         except Exception as e:
-            logger.exception("crypto ipn supabase upsert failed")
+            logger.exception("crypto ipn update failed")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
-
     return JSONResponse({"ok": True})
 
 FAILED_LOGINS = {}
