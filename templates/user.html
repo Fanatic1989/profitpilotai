@@ -5,7 +5,20 @@
 </head><body>
 <header class="topbar">
   <div>ProfitPilotAI • Dashboard</div>
-  <nav><a href="/logout">Logout</a></nav>
+  <div class="header-right">
+    {% if active %}
+      {% if remaining_days is not none and remaining_days <= 5 %}
+        <span class="badge warn">Active • {{ remaining_days }} day{{ 1 if remaining_days==1 else "s" }} left</span>
+      {% elif remaining_days is not none %}
+        <span class="badge active">Active • {{ remaining_days }} day{{ 1 if remaining_days==1 else "s" }} left</span>
+      {% else %}
+        <span class="badge active">Active • Lifetime</span>
+      {% endif %}
+    {% else %}
+      <span class="badge inactive">Inactive</span>
+    {% endif %}
+    <nav><a href="/logout">Logout</a></nav>
+  </div>
 </header>
 <main class="container">
   <section class="panel" style="grid-column:1 / -1">
