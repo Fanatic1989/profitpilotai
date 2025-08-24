@@ -38,8 +38,8 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 @app.get("/")
 def login_page(request: Request):
     if request.session.get("auth_ok"):
-        dest = "/admin" if (request.session.get("user") or {}).get("role") == "admin" else "/dashboard"
-    return RedirectResponse(dest, status_code=302)
+        dest = "/admin" if (request.session.get("user") or {}).get("role") == "admin" else "/dashboard"\1dest = "/admin" if (request.session.get("user") or {}).get("role") == "admin" else "/dashboard"
+\1return RedirectResponse(dest, status_code=302)
     return templates.TemplateResponse("login.html", {"request": request, "error": None})
 
 @app.post("/login")
