@@ -204,3 +204,8 @@ async def crypto_ipn(request: Request):
 FAILED_LOGINS = {}
 MAX_ATTEMPTS = 5
 WINDOW = 600  # 10 minutes
+
+@app.get("/robots.txt")
+def robots():
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse("User-agent: *\nDisallow: /_admin\n", status_code=200)
