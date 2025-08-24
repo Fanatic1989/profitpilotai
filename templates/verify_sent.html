@@ -1,7 +1,9 @@
-<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Verify your email</title><link rel="stylesheet" href="/static/style.css"></head><body>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verify Email • ProfitPilotAI</title><link rel="stylesheet" href="/static/style.css"></head><body>
 <div class="card">
-  <h2>Check your email</h2>
-  <p>We sent a verification link to <strong>{{ email }}</strong>. Click it to activate your account.</p>
+  <h2>Check your inbox</h2>
+  <p>We sent a verification link to <strong>{{ email }}</strong>.</p>
+  {% if not sent %}<p class="error">We couldn't send the email (SMTP issue). Try again later.</p>{% endif %}
+  <p><a href="/login">Back to login</a></p>
 </div>
 </body></html>

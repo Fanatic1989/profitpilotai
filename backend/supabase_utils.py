@@ -259,3 +259,111 @@ def list_active_users():
         return active
     except Exception:
         return []
+
+import os
+from datetime import datetime, timedelta, timezone
+import bcrypt
+from supabase import create_client
+
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+
+def get_client():
+    if not (SUPABASE_URL and SUPABASE_KEY):
+        return None
+    try:
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception:
+        return None
+
+
+
+def hash_pwd(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+def verify_pwd(hashv: str, password: str) -> bool:
+    try:
+        return bcrypt.checkpw(password.encode(), hashv.encode())
+    except Exception:
+        return False
+
+
+
+def create_user(name: str, address: str, login_id: str, email: str, password: str, role: str = "user"):
+    sb = get_client();  
+    if not sb: return None
+    if get_user_by_email(email) or (login_id and get_user_by_login_id(login_id)):
+        return None
+    try:
+        ph = hash_pwd(password)
+        row = {"name": name, "address": address, "login_id": login_id, "email": email, "password_hash": ph, "role": role}
+        return sb.table("app_users").insert(row).execute().data[0]
+    except Exception:
+        return None
+
+
+
+import secrets
+def _now_utc(): return datetime.now(timezone.utc)
+
+def save_verify_token(user_id: str, ttl_minutes: int = 60*24) -> str:
+    sb = get_client();  
+    if not sb: return ""
+    tok = secrets.token_urlsafe(32)
+    try:
+        sb.table("app_users").update({"verify_token": tok, "verify_expires": _now_utc()+timedelta(minutes=ttl_minutes)}).eq("id", user_id).execute()
+        return tok
+    except Exception:
+        return ""
+
+def verify_email_token(token: str) -> bool:
+    sb = get_client();  
+    if not sb: return False
+    try:
+        data = sb.table("app_users").select("id,verify_expires").eq("verify_token", token).single().execute().data
+        if not data: return False
+        exp = data.get("verify_expires")
+        if exp and datetime.fromisoformat(str(exp).replace("Z","")).replace(tzinfo=timezone.utc) < _now_utc():
+            return False
+        sb.table("app_users").update({"email_verified": True, "verify_token": None, "verify_expires": None}).eq("id", data["id"]).execute()
+        return True
+    except Exception:
+        return False
+
+
+
+def save_reset_token(email: str, ttl_minutes: int = 30) -> str:
+    sb = get_client();  
+    if not sb: return ""
+    user = get_user_by_email(email)
+    if not user: return ""
+    tok = secrets.token_urlsafe(32)
+    try:
+        sb.table("app_users").update({"reset_token": tok, "reset_expires": _now_utc()+timedelta(minutes=ttl_minutes)}).eq("id", user["id"]).execute()
+        return tok
+    except Exception:
+        return ""
+
+def get_user_by_reset_token(token: str):
+    sb = get_client();  
+    if not sb: return None
+    try:
+        u = sb.table("app_users").select("*").eq("reset_token", token).single().execute().data
+        if not u: return None
+        exp = u.get("reset_expires")
+        if exp and datetime.fromisoformat(str(exp).replace("Z","")).replace(tzinfo=timezone.utc) < _now_utc():
+            return None
+        return u
+    except Exception:
+        return None
+
+def update_password(user_id: str, new_password: str) -> bool:
+    sb = get_client();  
+    if not sb: return False
+    try:
+        ph = hash_pwd(new_password)
+        sb.table("app_users").update({"password_hash": ph, "reset_token": None, "reset_expires": None}).eq("id", user_id).execute()
+        return True
+    except Exception:
+        return False
+

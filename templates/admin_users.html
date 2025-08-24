@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Users • Admin • ProfitPilotAI</title><link rel="stylesheet" href="/static/style.css"></head><body>
+<header class="topbar"><div>ProfitPilotAI • Admin</div><nav><a href="/admin">Overview</a> • <a href="/logout">Logout</a></nav></header>
+<main class="container">
+  <section class="panel">
+    <h2>Active users</h2>
+    {% if flash %}<div class="ok">{{ flash }}</div>{% endif %}
+    <table class="table">
+      <thead><tr><th>Email</th><th>Login ID</th><th>Status</th><th>Expiry</th></tr></thead>
+      <tbody>
+        {% for u in users %}
+          <tr><td>{{ u.email }}</td><td>{{ u.login_id or '' }}</td><td>{{ u.status }}</td><td>{{ u.current_period_end or 'lifetime' }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <section class="panel">
+    <h3>Grant access</h3>
+    <form method="post" action="/admin/users/grant">
+      <label>Identifier (email or login id) <input name="identifier" required></label>
+      <label>Plan
+        <select name="plan">
+          <option value="1w">1 week</option>
+          <option value="1m">1 month</option>
+          <option value="1y">1 year</option>
+          <option value="lifetime">Lifetime</option>
+        </select>
+      </label>
+      <button type="submit">Grant</button>
+    </form>
+  </section>
+  <section class="panel">
+    <h3>Delete user</h3>
+    <form method="post" action="/admin/users/delete">
+      <label>Identifier (email or login id) <input name="identifier" required></label>
+      <button type="submit" class="danger">Delete</button>
+    </form>
+  </section>
+</main>
+</body></html>
