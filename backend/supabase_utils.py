@@ -13,18 +13,25 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 def get_client():
     if not create_client or not SUPABASE_URL or not SUPABASE_KEY:
         return None
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
+    try:
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception:
+        return None
 
 # ---- USERS / SUBSCRIPTIONS ----
 def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
-    sb = get_client();  assert sb
+    sb = get_client()
+    if not sb:
+        return False
     try:
         return sb.table("app_users").select("*").eq("email", email).single().execute().data
     except Exception:
         return None
 
 def get_user_by_login_or_email(login_or_email: str) -> Optional[Dict[str, Any]]:
-    sb = get_client();  assert sb
+    sb = get_client()
+    if not sb:
+        return False
     try:
         # try login_id
         data = sb.table("app_users").select("*").eq("login_id", login_or_email).single().execute().data
@@ -38,7 +45,9 @@ def get_user_by_login_or_email(login_or_email: str) -> Optional[Dict[str, Any]]:
         return None
 
 def set_role_admin(email: str) -> bool:
-    sb = get_client();  assert sb
+    sb = get_client()
+    if not sb:
+        return False
     try:
         sb.table("app_users").update({"role":"admin"}).eq("email", email).execute()
         return True
@@ -46,7 +55,9 @@ def set_role_admin(email: str) -> bool:
         return False
 
 def get_user_and_latest_sub(email: str) -> Optional[Dict[str, Any]]:
-    sb = get_client();  assert sb
+    sb = get_client()
+    if not sb:
+        return False
     try:
         u = sb.table("app_users").select("id,email,role").eq("email", email).single().execute().data
         subs = sb.table("subscriptions").select("*").eq("user_id", u["id"]).order("created_at", desc=True).limit(1).execute().data
@@ -71,7 +82,9 @@ def add_days_from_current_end(user_id: str, days: int) -> Optional[str]:
     Extends the user's subscription by +days from the later of (now, current_period_end).
     Creates or updates a row; returns ISO expiry.
     """
-    sb = get_client();  assert sb
+    sb = get_client()
+    if not sb:
+        return False
     now = datetime.now(timezone.utc)
     try:
         last = sb.table("subscriptions").select("id,current_period_end,status").eq("user_id", user_id)\
@@ -105,7 +118,9 @@ def rate_window_now() -> datetime:
     return datetime.now(timezone.utc)
 
 def is_rate_limited(ip: str, max_attempts: int, window_seconds: int) -> bool:
-    sb = get_client();  assert sb
+    sb = get_client()
+    if not sb:
+        return False
     now = rate_window_now()
     try:
         rec = sb.table("auth_throttle").select("*").eq("ip", ip).single().execute().data
@@ -118,7 +133,9 @@ def is_rate_limited(ip: str, max_attempts: int, window_seconds: int) -> bool:
         return False
 
 def record_failed_attempt(ip: str, max_attempts: int, window_seconds: int):
-    sb = get_client();  assert sb
+    sb = get_client()
+    if not sb:
+        return False
     now = rate_window_now()
     win_end = now + timedelta(seconds=window_seconds)
     try:
@@ -136,7 +153,9 @@ def record_failed_attempt(ip: str, max_attempts: int, window_seconds: int):
         sb.table("auth_throttle").upsert({"ip": ip, "attempts": 1, "window_end": win_end.isoformat()}).execute()
 
 def clear_attempts(ip: str):
-    sb = get_client();  assert sb
+    sb = get_client()
+    if not sb:
+        return False
     try:
         sb.table("auth_throttle").delete().eq("ip", ip).execute()
     except Exception:
@@ -145,7 +164,9 @@ def clear_attempts(ip: str):
 # ===== Admin helpers: grant/delete/list users =====
 def _find_user_by_identifier(identifier: str):
     """Identifier can be email or login_id."""
-    sb = get_client();  assert sb
+    sb = get_client()
+    if not sb:
+        return False
     u = None
     try:
         u = sb.table("app_users").select("*").eq("email", identifier).single().execute().data
@@ -166,7 +187,9 @@ def grant_user(identifier: str, plan: str) -> bool:
     - 1y => +365 days
     - lifetime => status active, current_period_end NULL
     """
-    sb = get_client();  assert sb
+    sb = get_client()
+    if not sb:
+        return False
     u = _find_user_by_identifier(identifier)
     if not u: return False
     plan = (plan or '').lower().strip()
@@ -189,7 +212,9 @@ def grant_user(identifier: str, plan: str) -> bool:
 
 def delete_user(identifier: str) -> bool:
     """Delete user and cascade (subscriptions table has ON DELETE CASCADE)."""
-    sb = get_client();  assert sb
+    sb = get_client()
+    if not sb:
+        return False
     u = _find_user_by_identifier(identifier)
     if not u: return False
     try:
@@ -204,7 +229,9 @@ def list_active_users():
     [{email, login_id, status, current_period_end}]
     Active if status='active' and (expiry >= now OR expiry is null for lifetime).
     """
-    sb = get_client();  assert sb
+    sb = get_client()
+    if not sb:
+        return False
     try:
         users = sb.table("app_users").select("id,email,login_id").execute().data or []
         # fetch latest sub per user
