@@ -5,6 +5,10 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.templating import Jinja2Templates
 import uvicorn
+from .supabase_utils import get_client, get_user_by_login_or_email, is_rate_limited, record_failed_attempt, clear_attempts, get_user_and_latest_sub, is_subscription_active
+from .emailer import send_email
+from .auth import create_user, verify_email_token, start_password_reset, finish_password_reset
+from fastapi import FastAPI, Request, Form, HTTPException, Depends
 from .nowpayments import create_invoice, verify_ipn_signature
 from .supabase_utils import get_client, add_days_from_current_end, get_user_and_latest_sub, is_subscription_active
 from .payments import create_checkout_session
@@ -35,22 +39,34 @@ def login_page(request: Request):
 
 @app.post("/login")
 def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    # rate-limit by IP
     ip = request.client.host if request.client else "unknown"
-    now = time()
-    window = FAILED_LOGINS.get(ip, [])
-    window = [t for t in window if now - t < WINDOW]
-    if len(window) >= MAX_ATTEMPTS:
+    MAX_ATTEMPTS = 5
+    WINDOW = 600
+    if is_rate_limited(ip, MAX_ATTEMPTS, WINDOW):
         return HTMLResponse("<h3>Too many attempts. Try again later.</h3>", status_code=429)
-    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-        request.session["auth_ok"] = True
-        # reset failures
-        ip = request.client.host if request.client else "unknown"
-        FAILED_LOGINS.pop(ip, None)
-        request.session["user"] = username
-        return RedirectResponse("/admin", status_code=302)
-    window.append(now); FAILED_LOGINS[ip] = window
-    return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials"})
+
+    sb = get_client()
+    u = get_user_by_login_or_email(username) if sb else None
+    if not u:
+        record_failed_attempt(ip, MAX_ATTEMPTS, WINDOW)
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials"})
+    if not u.get("email_verified"):
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Please verify your email first"})
+
+    from passlib.hash import bcrypt
+    try:
+        if not bcrypt.verify(password, u["password_hash"]):
+            record_failed_attempt(ip, MAX_ATTEMPTS, WINDOW)
+            return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials"})
+    except Exception:
+        record_failed_attempt(ip, MAX_ATTEMPTS, WINDOW)
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials"})
+
+    request.session["auth_ok"] = True
+    request.session["user"] = u["email"]
+    clear_attempts(ip)
+    # admin to /_admin; others to /dashboard
+    return RedirectResponse("/_admin" if u.get("role") == "admin" else "/dashboard", status_code=302)
 
 @app.get("/logout")
 def logout(request: Request):
@@ -111,19 +127,6 @@ def register_page(request: Request):
     if request.session.get("auth_ok"):
         return RedirectResponse("/dashboard", status_code=302)
     return templates.TemplateResponse("register.html", {"request": request, "error": None})
-
-@app.post("/register")
-def register_post(request: Request, email: str = Form(...), password: str = Form(...)):
-    ok, res = create_user(email, password)
-    if not ok:
-        return templates.TemplateResponse("register.html", {"request": request, "error": f"Registration failed: {res}"})
-    # Auto-login after registration
-    request.session["auth_ok"] = True
-        # reset failures
-        ip = request.client.host if request.client else "unknown"
-        FAILED_LOGINS.pop(ip, None)
-    request.session["user"] = email
-    return RedirectResponse("/dashboard", status_code=302)
 
 @app.get("/dashboard")
 def user_dashboard(request: Request):
@@ -202,3 +205,42 @@ WINDOW = 600  # 10 minutes
 def robots():
     from fastapi.responses import PlainTextResponse
     return PlainTextResponse("User-agent: *\nDisallow: /_admin\n", status_code=200)
+
+@app.post("/register")
+def register_post(request: Request, name: str = Form(...), address: str = Form(...), login_id: str = Form(...), email: str = Form(...), password: str = Form(...)):
+    ok, token_or_err = create_user(name, address, login_id, email, password)
+    if not ok:
+        return templates.TemplateResponse("register.html", {"request": request, "error": f"Registration failed: {token_or_err}"})
+    verify_link = f"{os.getenv('SITE_BASE','http://localhost:8000')}/verify?token={token_or_err}"
+    send_email(email, "Verify your ProfitPilotAI account", f"<p>Hi {name},</p><p>Click to verify: <a href='{verify_link}'>Verify</a></p>")
+    return templates.TemplateResponse("verify_sent.html", {"request": request, "email": email})
+
+@app.get("/verify")
+def verify(token: str):
+    if verify_email_token(token):
+        return templates.TemplateResponse("verify_done.html", {"request": {}})
+    return templates.TemplateResponse("verify_error.html", {"request": {}}, status_code=400)
+
+@app.get("/forgot")
+def forgot_page(request: Request):
+    return templates.TemplateResponse("forgot.html", {"request": request, "error": None})
+
+@app.post("/forgot")
+def forgot_start(request: Request, login_or_email: str = Form(...)):
+    token = start_password_reset(login_or_email)
+    if not token:
+        return templates.TemplateResponse("forgot.html", {"request": request, "error": "Account not found"})
+    link = f"{os.getenv('SITE_BASE','http://localhost:8000')}/reset?token={token}"
+    # send email (best effort)
+    send_email(login_or_email, "Reset your ProfitPilotAI password", f"<p>Click to reset: <a href='{link}'>Reset password</a></p>")
+    return HTMLResponse("<h3>Check your email for a reset link.</h3>")
+
+@app.get("/reset")
+def reset_page(request: Request, token: str):
+    return templates.TemplateResponse("reset.html", {"request": request, "token": token, "error": None})
+
+@app.post("/reset")
+def reset_do(request: Request, token: str, password: str = Form(...)):
+    if finish_password_reset(token, password):
+        return HTMLResponse("<h3>Password updated. You can now <a href='/'>sign in</a>.</h3>")
+    return templates.TemplateResponse("reset.html", {"request": request, "token": token, "error": "Invalid or expired token"}, status_code=400)
