@@ -244,3 +244,70 @@ def set_role_admin(email: str) -> bool:
         return True
     except Exception:
         return False
+
+
+def _is_uuid_like(v: str) -> bool:
+    import re
+    return bool(re.fullmatch(r"[0-9a-fA-F-]{32,36}", v or ""))
+
+def _get_user_by_id(user_id: str):
+    sb = get_client()
+    if not sb: return None
+    try:
+        r = sb.table("app_users").select("*").eq("id", user_id).limit(1).execute()
+        rows = r.data or []
+        return rows[0] if rows else None
+    except Exception:
+        return None
+
+def add_days_from_current_end(identifier: str, days: int, plan: str = "manual"):
+    """
+    Extend subscription by `days` from max(now, current end) for the given user.
+    `identifier` can be email, login_id, or user UUID.
+    Returns ISO string of the new current_period_end on success, else None.
+    """
+    sb = get_client()
+    if not sb:
+        return None
+
+    # Resolve user
+    user = None
+    if _is_uuid_like(identifier):
+        user = _get_user_by_id(identifier)
+    if not user:
+        user = get_user_by_login_or_email(identifier)
+    if not user:
+        return None
+
+    try:
+        # fetch latest end
+        res = (
+            sb.table("subscriptions")
+              .select("current_period_end")
+              .eq("user_id", user["id"])
+              .order("created_at", desc=True)
+              .limit(1)
+              .execute()
+        )
+        from datetime import datetime, timedelta, timezone
+        now_ = datetime.now(timezone.utc)
+        if res.data:
+            raw = res.data[0].get("current_period_end")
+            try:
+                cur_end = datetime.fromisoformat(str(raw).replace("Z","+00:00"))
+            except Exception:
+                cur_end = now_
+        else:
+            cur_end = now_
+
+        new_end = max(now_, cur_end) + timedelta(days=int(days))
+        payload = {
+            "user_id": user["id"],
+            "plan": plan,
+            "status": "active",
+            "current_period_end": new_end.isoformat()
+        }
+        sb.table("subscriptions").insert(payload).execute()
+        return new_end.isoformat()
+    except Exception:
+        return None
