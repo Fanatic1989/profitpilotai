@@ -5,6 +5,12 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.templating import Jinja2Templates
 import uvicorn
+from .supabase_utils import get_client
+from .payments import create_checkout_session
+from .auth import create_user, get_user_by_email, verify_pwd, set_role_admin
+from datetime import datetime, timezone
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
+from fastapi import FastAPI, Request, Form, HTTPException
 from loguru import logger
 
 app = FastAPI(title="ProfitPilotAI", version="0.1")
@@ -78,7 +84,7 @@ def admin_add_user(request: Request, email: str = Form(...), plan: str = Form(..
     res = grant_user(email, plan)
     if not res.get("ok"):
         logger.error("Add user failed: {}", res.get("error"))
-    return RedirectResponse("/_admin", status_code=302)
+    return RedirectResponse("/dashboard" if request.session.get("user") != os.getenv("ADMIN_USERNAME","admin") else "/_admin", status_code=302)
 
 @app.post("/_admin/users/delete")
 def admin_delete_user(request: Request, email: str = Form(...)):
@@ -86,4 +92,110 @@ def admin_delete_user(request: Request, email: str = Form(...)):
     res = delete_user(email)
     if not res.get("ok"):
         logger.error("Delete user failed: {}", res.get("error"))
-    return RedirectResponse("/_admin", status_code=302)
+    return RedirectResponse("/dashboard" if request.session.get("user") != os.getenv("ADMIN_USERNAME","admin") else "/_admin", status_code=302)
+
+@app.get("/register")
+def register_page(request: Request):
+    if request.session.get("auth_ok"):
+        return RedirectResponse("/dashboard", status_code=302)
+    return templates.TemplateResponse("register.html", {"request": request, "error": None})
+
+@app.post("/register")
+def register_post(request: Request, email: str = Form(...), password: str = Form(...)):
+    ok, res = create_user(email, password)
+    if not ok:
+        return templates.TemplateResponse("register.html", {"request": request, "error": f"Registration failed: {res}"})
+    # Auto-login after registration
+    request.session["auth_ok"] = True
+    request.session["user"] = email
+    return RedirectResponse("/dashboard", status_code=302)
+
+@app.get("/dashboard")
+def user_dashboard(request: Request):
+    if not request.session.get("auth_ok"):
+        return RedirectResponse("/", status_code=302)
+    email = request.session.get("user")
+    sb = get_client()
+    if not sb:
+        return templates.TemplateResponse("user.html", {"request": request, "sub": None})
+    try:
+        u = sb.table("app_users").select("id,role").eq("email", email).single().execute().data
+        sub = sb.table("subscriptions").select("*").eq("user_id", u["id"]).order("created_at", desc=True).limit(1).execute().data
+        sub = sub[0] if sub else None
+    except Exception:
+        sub = None
+    return templates.TemplateResponse("user.html", {"request": request, "sub": sub})
+
+@app.post("/subscribe")
+def subscribe(request: Request):
+    if not request.session.get("auth_ok"):
+        return RedirectResponse("/", status_code=302)
+    email = request.session.get("user")
+    success_url = os.getenv("SUCCESS_URL", "https://"+os.getenv("RENDER_EXTERNAL_HOSTNAME","localhost")+"/dashboard")
+    cancel_url = os.getenv("CANCEL_URL", "https://"+os.getenv("RENDER_EXTERNAL_HOSTNAME","localhost")+"/dashboard")
+    url = create_checkout_session(email, success_url, cancel_url)
+    if not url:
+        return HTMLResponse("<h3>Payments not configured.</h3>", status_code=500)
+    return RedirectResponse(url, status_code=303)
+
+@app.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    wh_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature")
+    import stripe
+    try:
+        if wh_secret:
+            event = stripe.Webhook.construct_event(payload, sig, wh_secret)
+        else:
+            event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+    t = event["type"]
+    data = event["data"]["object"]
+    sb = get_client()
+    if not sb:
+        return JSONResponse({"ok": False, "error": "Supabase not configured"}, status_code=500)
+
+    # checkout.session.completed -> create sub row
+    if t == "checkout.session.completed":
+        customer_email = data.get("customer_details",{}).get("email")
+        sub_id = data.get("subscription")
+        cust_id = data.get("customer")
+        if customer_email and sub_id:
+            try:
+                u = sb.table("app_users").select("id").eq("email", customer_email).single().execute().data
+                sb.table("subscriptions").insert({
+                    "user_id": u["id"],
+                    "stripe_customer_id": cust_id,
+                    "stripe_subscription_id": sub_id,
+                    "status": "active"
+                }).execute()
+            except Exception as e:
+                return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    # customer.subscription.updated -> update status & period end
+    if t == "customer.subscription.updated":
+        sub_id = data.get("id")
+        status = data.get("status")
+        period_end = data.get("current_period_end")
+        from datetime import datetime, timezone
+        expires = datetime.fromtimestamp(period_end, tz=timezone.utc) if period_end else None
+        try:
+            sb.table("subscriptions").update({
+                "status": status,
+                "current_period_end": expires.isoformat() if expires else None
+            }).eq("stripe_subscription_id", sub_id).execute()
+        except Exception as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    return JSONResponse({"ok": True})
+
+@app.head("/uptime")
+def uptime_head():
+    return HTMLResponse("", status_code=200)
+
+@app.get("/uptime")
+def uptime_get():
+    return {"ok": True}
