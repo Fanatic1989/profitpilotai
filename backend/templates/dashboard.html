@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>User Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>Welcome, {{ user.name or user.login_id }}</h1>
+  <p>This is your dashboard. From here you can access your subscription features.</p>
+  <p>Your role: {{ user.role }}</p>
+  <a href="/">Home</a> | <a href="/logout">Logout</a>
+</body>
+</html>
