@@ -1,412 +1,219 @@
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any
-from loguru import logger
-try:
-    from supabase import create_client
+from typing import Optional, Tuple, Dict, Any, List
 
-# --- httpx shim: accept `proxy=` kwarg and map to `proxies=` (fix gotrue>=2.9 with httpx<0.26) ---
-except Exception:
-    create_client = None
+from supabase import create_client
 
+# -------- Env + client cache --------
+_CLIENT = None
+_LAST_ERROR: Optional[str] = None
 
-
-# --- robust env loading ---
-def _env(name, *alts):
+def _env(name: str, *alts: str) -> Optional[str]:
     for k in (name,)+alts:
         v = os.getenv(k)
         if v and isinstance(v, str) and v.strip() and v.strip() not in ("...", "<set-me>", "CHANGE_ME"):
             return v.strip().strip('"').strip("'")
     return None
 
-_client_cache = None
-
-_last_client_error = None
-
 def get_client():
-    global _client_cache, _last_client_error
-    if _client_cache:
-        return _client_cache
+    """Return cached Supabase client or None (and set _LAST_ERROR) if missing/invalid env."""
+    global _CLIENT, _LAST_ERROR
+    if _CLIENT is not None:
+        return _CLIENT
     url = _env("SUPABASE_URL")
-    key = _env("SUPABASE_KEY","SUPABASE_SERVICE_ROLE_KEY","SUPABASE_SERVICE_KEY")
+    key = _env("SUPABASE_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY")
     if not url or not key or "supabase.co" not in url or not url.startswith("https://"):
-        _last_client_error = "Missing/invalid SUPABASE_URL or KEY"
+        _LAST_ERROR = "Missing/invalid SUPABASE_URL or KEY"
         return None
-    # ensure httpx shim is installed before any client instantiation
-    _patch_httpx_proxy_kw()
     try:
-        c = create_client(url, key)
-        _client_cache = c
-        _last_client_error = None
-        return c
+        _CLIENT = create_client(url, key)
+        _LAST_ERROR = None
+        return _CLIENT
     except Exception as e:
-        _last_client_error = str(e)
-        return None
-def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
-    sb = get_client()
-    if not sb:
-        return False
-    try:
-        return sb.table("app_users").select("*").eq("email", email).single().execute().data
-    except Exception:
+        _LAST_ERROR = str(e)
         return None
 
+# -------- Users --------
 def get_user_by_login_or_email(login_or_email: str) -> Optional[Dict[str, Any]]:
-    sb = get_client()
-    if not sb:
-        return False
-    try:
-        # try login_id
-        data = sb.table("app_users").select("*").eq("login_id", login_or_email).single().execute().data
-        return data
-    except Exception:
-        pass
-    try:
-        data = sb.table("app_users").select("*").eq("email", login_or_email).single().execute().data
-        return data
-    except Exception:
-        return None
-
-def set_role_admin(email: str) -> bool:
-    sb = get_client()
-    if not sb:
-        return False
-    try:
-        sb.table("app_users").update({"role":"admin"}).eq("email", email).execute()
-        return True
-    except Exception:
-        return False
-
-def get_user_and_latest_sub(email: str) -> Optional[Dict[str, Any]]:
-    sb = get_client()
-    if not sb:
-        return False
-    try:
-        u = sb.table("app_users").select("id,email,role").eq("email", email).single().execute().data
-        subs = sb.table("subscriptions").select("*").eq("user_id", u["id"]).order("created_at", desc=True).limit(1).execute().data
-        return {"user": u, "sub": (subs[0] if subs else None)}
-    except Exception:
-        return None
-
-def is_subscription_active(sub: Optional[Dict[str, Any]]) -> bool:
-    if not sub: return False
-    if (sub.get("status","").lower() != "active"): return False
-    exp = sub.get("current_period_end")
-    if not exp: return True  # lifetime
-    try:
-        dt = datetime.fromisoformat(exp.replace("Z",""))
-        if dt.tzinfo is None: dt = dt.replace(tzinfo=timezone.utc)
-        return dt >= datetime.now(timezone.utc)
-    except Exception:
-        return False
-
-def add_days_from_current_end(user_id: str, days: int) -> Optional[str]:
     """
-    Extends the user's subscription by +days from the later of (now, current_period_end).
-    Creates or updates a row; returns ISO expiry.
+    Fetch user by email OR login_id from app_users.
+    Returns dict or None.
     """
     sb = get_client()
     if not sb:
-        return False
-    now = datetime.now(timezone.utc)
+        return None
+    v = login_or_email.strip()
     try:
-        last = sb.table("subscriptions").select("id,current_period_end,status").eq("user_id", user_id)\
-                .order("created_at", desc=True).limit(1).execute().data
-        if last and last[0].get("current_period_end"):
-            cur = datetime.fromisoformat(last[0]["current_period_end"].replace("Z",""))
-            if cur.tzinfo is None: cur = cur.replace(tzinfo=timezone.utc)
-            base = max(now, cur)
-        else:
-            base = now
-        new_end = base + timedelta(days=days)
-        payload = {
-            "user_id": user_id,
-            "status": "active",
-            "stripe_customer_id": None,
-            "stripe_subscription_id": None,  # not stripe; you can tag "np_invoice_x" elsewhere if needed
-            "current_period_end": new_end.isoformat()
-        }
-        # if last row exists, update it; else insert new
-        if last:
-            sb.table("subscriptions").update(payload).eq("id", last[0]["id"]).execute()
-        else:
-            sb.table("subscriptions").insert(payload).execute()
-        return new_end.isoformat()
-    except Exception as e:
-        logger.exception("add_days_from_current_end failed")
+        # supabase-py or() filter string
+        res = sb.table("app_users").select("*").or_(f"email.eq.{v},login_id.eq.{v}").limit(1).execute()
+        rows = res.data or []
+        return rows[0] if rows else None
+    except Exception:
         return None
 
-# ---- RATE LIMIT (persistent) ----
-def rate_window_now() -> datetime:
-    return datetime.now(timezone.utc)
-
+# -------- Rate limit (login attempts) --------
+# Table expected:
+# create table if not exists login_attempts (ip text, ts timestamptz default now());
 def is_rate_limited(ip: str, max_attempts: int, window_seconds: int) -> bool:
     sb = get_client()
     if not sb:
         return False
-    now = rate_window_now()
     try:
-        rec = sb.table("auth_throttle").select("*").eq("ip", ip).single().execute().data
-        if not rec: return False
-        if rec["window_end"] <= now.isoformat():
-            # window expired; treat as not limited
-            return False
-        return rec["attempts"] >= max_attempts
+        since = (datetime.now(timezone.utc) - timedelta(seconds=window_seconds)).isoformat()
+        res = sb.table("login_attempts").select("count(*)", count="exact").gte("ts", since).eq("ip", ip).execute()
+        # When using count="exact", the count lands on res.count or via content-range; robust fallback:
+        count = getattr(res, "count", None)
+        if count is None:
+            # Some drivers return rows; count(*) as count
+            rows = res.data or []
+            if rows and isinstance(rows[0], dict):
+                count = int(rows[0].get("count", 0))
+            else:
+                count = 0
+        return int(count) >= max_attempts
     except Exception:
         return False
 
-def record_failed_attempt(ip: str, max_attempts: int, window_seconds: int):
+def record_failed_attempt(ip: str) -> None:
+    sb = get_client()
+    if not sb:
+        return
+    try:
+        sb.table("login_attempts").insert({"ip": ip}).execute()
+    except Exception:
+        pass
+
+def clear_attempts(ip: str) -> None:
+    sb = get_client()
+    if not sb:
+        return
+    try:
+        sb.table("login_attempts").delete().eq("ip", ip).execute()
+    except Exception:
+        pass
+
+# -------- Subscriptions --------
+# Table expected:
+# create table if not exists subscriptions (
+#   id uuid primary key default gen_random_uuid(),
+#   user_id uuid not null references app_users(id) on delete cascade,
+#   plan text not null default 'custom',
+#   status text not null default 'active',
+#   current_period_end timestamptz not null,
+#   created_at timestamptz not null default now()
+# );
+def get_user_and_latest_sub(login_or_email: str) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    sb = get_client()
+    if not sb:
+        return None, None
+    user = get_user_by_login_or_email(login_or_email)
+    if not user:
+        return None, None
+    try:
+        res = (
+            sb.table("subscriptions")
+            .select("*")
+            .eq("user_id", user["id"])
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        sub = (res.data or [None])[0]
+        return user, sub
+    except Exception:
+        return user, None
+
+def is_subscription_active(sub: Optional[Dict[str, Any]]) -> bool:
+    if not sub:
+        return False
+    end_raw = sub.get("current_period_end")
+    if not end_raw:
+        return False
+    try:
+        # Accepts ISO; handle potential 'Z'
+        end_dt = datetime.fromisoformat(str(end_raw).replace("Z", "+00:00"))
+    except Exception:
+        return False
+    return end_dt > datetime.now(timezone.utc) and (sub.get("status") in (None, "", "active"))
+
+def grant_user(login_or_email: str, days: int, plan: str = "manual") -> bool:
+    """
+    Extend user's subscription by `days` from max(now, current end).
+    Creates user row if missing? (No: return False to avoid side-effects.)
+    """
     sb = get_client()
     if not sb:
         return False
-    now = rate_window_now()
-    win_end = now + timedelta(seconds=window_seconds)
+    user = get_user_by_login_or_email(login_or_email)
+    if not user:
+        return False
     try:
-        # upsert logic: if exists and window still valid, inc; else reset
-        rec = sb.table("auth_throttle").select("*").eq("ip", ip).single().execute().data
-        if rec:
-            if rec["window_end"] <= now.isoformat():
-                sb.table("auth_throttle").update({"attempts": 1, "window_end": win_end.isoformat()}).eq("ip", ip).execute()
-            else:
-                sb.table("auth_throttle").update({"attempts": rec["attempts"] + 1}).eq("ip", ip).execute()
+        # fetch latest current_period_end if any
+        res = (
+            sb.table("subscriptions")
+            .select("current_period_end")
+            .eq("user_id", user["id"])
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        now_ = datetime.now(timezone.utc)
+        if res.data:
+            raw = res.data[0].get("current_period_end")
+            try:
+                cur_end = datetime.fromisoformat(str(raw).replace("Z","+00:00"))
+            except Exception:
+                cur_end = now_
         else:
-            sb.table("auth_throttle").insert({"ip": ip, "attempts": 1, "window_end": win_end.isoformat()}).execute()
-    except Exception:
-        # if single() fails (no row), insert new
-        sb.table("auth_throttle").upsert({"ip": ip, "attempts": 1, "window_end": win_end.isoformat()}).execute()
-
-def clear_attempts(ip: str):
-    sb = get_client()
-    if not sb:
-        return False
-    try:
-        sb.table("auth_throttle").delete().eq("ip", ip).execute()
-    except Exception:
-        pass
-
-# ===== Admin helpers: grant/delete/list users =====
-def _find_user_by_identifier(identifier: str):
-    """Identifier can be email or login_id."""
-    sb = get_client()
-    if not sb:
-        return False
-    u = None
-    try:
-        u = sb.table("app_users").select("*").eq("email", identifier).single().execute().data
-    except Exception:
-        pass
-    if not u:
-        try:
-            u = sb.table("app_users").select("*").eq("login_id", identifier).single().execute().data
-        except Exception:
-            u = None
-    return u
-
-def grant_user(identifier: str, plan: str) -> bool:
-    """
-    plan: one of ['1w','1m','1y','lifetime']
-    - 1w => +7 days
-    - 1m => +30 days
-    - 1y => +365 days
-    - lifetime => status active, current_period_end NULL
-    """
-    sb = get_client()
-    if not sb:
-        return False
-    u = _find_user_by_identifier(identifier)
-    if not u: return False
-    plan = (plan or '').lower().strip()
-    if plan == 'lifetime':
-        try:
-            # upsert/ensure a row marked active with no expiry
-            last = sb.table("subscriptions").select("id").eq("user_id", u["id"]).order("created_at", desc=True).limit(1).execute().data
-            payload = {"user_id": u["id"], "status": "active", "provider": "admin", "external_id": None, "current_period_end": None}
-            if last:
-                sb.table("subscriptions").update(payload).eq("id", last[0]["id"]).execute()
-            else:
-                sb.table("subscriptions").insert(payload).execute()
-            return True
-        except Exception:
-            return False
-    days_map = {'1w':7, '1m':30, '1y':365}
-    days = days_map.get(plan)
-    if not days: return False
-    return add_days_from_current_end(u["id"], days=days) is not None
-
-def delete_user(identifier: str) -> bool:
-    """Delete user and cascade (subscriptions table has ON DELETE CASCADE)."""
-    sb = get_client()
-    if not sb:
-        return False
-    u = _find_user_by_identifier(identifier)
-    if not u: return False
-    try:
-        sb.table("app_users").delete().eq("id", u["id"]).execute()
+            cur_end = now_
+        new_end = max(now_, cur_end) + timedelta(days=days)
+        payload = {
+            "user_id": user["id"],
+            "plan": plan,
+            "status": "active",
+            "current_period_end": new_end.isoformat()
+        }
+        sb.table("subscriptions").insert(payload).execute()
         return True
     except Exception:
         return False
 
-def list_active_users():
-    """
-    Return list of active users with expiry:
-    [{email, login_id, status, current_period_end}]
-    Active if status='active' and (expiry >= now OR expiry is null for lifetime).
-    """
+def delete_user(login_or_email: str) -> bool:
     sb = get_client()
     if not sb:
         return False
+    user = get_user_by_login_or_email(login_or_email)
+    if not user:
+        return False
     try:
-        users = sb.table("app_users").select("id,email,login_id").execute().data or []
-        # fetch latest sub per user
-        active = []
-        from datetime import datetime, timezone
-        now = datetime.now(timezone.utc)
-        for u in users:
-            subs = sb.table("subscriptions").select("*").eq("user_id", u["id"]).order("created_at", desc=True).limit(1).execute().data
-            sub = subs[0] if subs else None
-            if not sub: 
-                continue
-            if (sub.get("status","").lower() != "active"):
-                continue
-            exp = sub.get("current_period_end")
-            if exp is None:
-                active.append({"email": u["email"], "login_id": u.get("login_id"), "status": "active", "current_period_end": None})
-            else:
-                try:
-                    dt = datetime.fromisoformat(exp.replace("Z",""))
-                    if dt.tzinfo is None: dt = dt.replace(tzinfo=timezone.utc)
-                    if dt >= now:
-                        active.append({"email": u["email"], "login_id": u.get("login_id"), "status": "active", "current_period_end": exp})
-                except Exception:
-                    pass
-        return active
+        # subscriptions on delete cascade will handle if FK set; do explicit just in case
+        try:
+            sb.table("subscriptions").delete().eq("user_id", user["id"]).execute()
+        except Exception:
+            pass
+        sb.table("app_users").delete().eq("id", user["id"]).execute()
+        return True
+    except Exception:
+        return False
+
+def list_active_users() -> List[Dict[str, Any]]:
+    sb = get_client()
+    if not sb:
+        return []
+    try:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        res = sb.table("subscriptions").select("user_id,current_period_end,status").gt("current_period_end", now_iso).eq("status","active").execute()
+        active_user_ids = sorted({row["user_id"] for row in (res.data or []) if row.get("user_id")})
+        users: List[Dict[str, Any]] = []
+        for uid in active_user_ids:
+            ures = sb.table("app_users").select("id,name,email,login_id,role,created_at").eq("id", uid).limit(1).execute()
+            row = (ures.data or [None])[0]
+            if row:
+                users.append(row)
+        return users
     except Exception:
         return []
 
-import os
-from datetime import datetime, timedelta, timezone
-import bcrypt
-from supabase import create_client
-
-
-
-# --- robust env loading ---
-def _env(name, *alts):
-    for k in (name,)+alts:
-        v = os.getenv(k)
-        if v and isinstance(v, str) and v.strip() and v.strip() not in ("...", "<set-me>", "CHANGE_ME"):
-            return v.strip().strip('"').strip("'")
-    return None
-
-_client_cache = None
-
-_last_client_error = None
-
-def get_client():
-    global _client_cache, _last_client_error
-    if _client_cache:
-        return _client_cache
-    url = _env("SUPABASE_URL")
-    key = _env("SUPABASE_KEY","SUPABASE_SERVICE_ROLE_KEY","SUPABASE_SERVICE_KEY")
-    if not url or not key or "supabase.co" not in url or not url.startswith("https://"):
-        _last_client_error = "Missing/invalid SUPABASE_URL or KEY"
-        return None
-    # ensure httpx shim is installed before any client instantiation
-    _patch_httpx_proxy_kw()
-    try:
-        c = create_client(url, key)
-        _client_cache = c
-        _last_client_error = None
-        return c
-    except Exception as e:
-        _last_client_error = str(e)
-        return None
-def hash_pwd(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-
-def verify_pwd(hashv: str, password: str) -> bool:
-    try:
-        return bcrypt.checkpw(password.encode(), hashv.encode())
-    except Exception:
-        return False
-
-
-
-def create_user(name: str, address: str, login_id: str, email: str, password: str, role: str = "user"):
-    sb = get_client();  
-    if not sb: return None
-    if get_user_by_email(email) or (login_id and get_user_by_login_id(login_id)):
-        return None
-    try:
-        ph = hash_pwd(password)
-        row = {"name": name, "address": address, "login_id": login_id, "email": email, "password_hash": ph, "role": role}
-        return sb.table("app_users").insert(row).execute().data[0]
-    except Exception:
-        return None
-
-
-
-import secrets
-def _now_utc(): return datetime.now(timezone.utc)
-
-def save_verify_token(user_id: str, ttl_minutes: int = 60*24) -> str:
-    sb = get_client();  
-    if not sb: return ""
-    tok = secrets.token_urlsafe(32)
-    try:
-        sb.table("app_users").update({"verify_token": tok, "verify_expires": _now_utc()+timedelta(minutes=ttl_minutes)}).eq("id", user_id).execute()
-        return tok
-    except Exception:
-        return ""
-
-def verify_email_token(token: str) -> bool:
-    sb = get_client();  
-    if not sb: return False
-    try:
-        data = sb.table("app_users").select("id,verify_expires").eq("verify_token", token).single().execute().data
-        if not data: return False
-        exp = data.get("verify_expires")
-        if exp and datetime.fromisoformat(str(exp).replace("Z","")).replace(tzinfo=timezone.utc) < _now_utc():
-            return False
-        sb.table("app_users").update({"email_verified": True, "verify_token": None, "verify_expires": None}).eq("id", data["id"]).execute()
-        return True
-    except Exception:
-        return False
-
-
-
-def save_reset_token(email: str, ttl_minutes: int = 30) -> str:
-    sb = get_client();  
-    if not sb: return ""
-    user = get_user_by_email(email)
-    if not user: return ""
-    tok = secrets.token_urlsafe(32)
-    try:
-        sb.table("app_users").update({"reset_token": tok, "reset_expires": _now_utc()+timedelta(minutes=ttl_minutes)}).eq("id", user["id"]).execute()
-        return tok
-    except Exception:
-        return ""
-
-def get_user_by_reset_token(token: str):
-    sb = get_client();  
-    if not sb: return None
-    try:
-        u = sb.table("app_users").select("*").eq("reset_token", token).single().execute().data
-        if not u: return None
-        exp = u.get("reset_expires")
-        if exp and datetime.fromisoformat(str(exp).replace("Z","")).replace(tzinfo=timezone.utc) < _now_utc():
-            return None
-        return u
-    except Exception:
-        return None
-
-def update_password(user_id: str, new_password: str) -> bool:
-    sb = get_client();  
-    if not sb: return False
-    try:
-        ph = hash_pwd(new_password)
-        sb.table("app_users").update({"password_hash": ph, "reset_token": None, "reset_expires": None}).eq("id", user_id).execute()
-        return True
-    except Exception:
-        return False
-
+# Optional: expose last client error to the debug endpoint
+def _last_error() -> Optional[str]:
+    return _LAST_ERROR
