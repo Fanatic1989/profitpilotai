@@ -7,17 +7,35 @@ try:
 except Exception:
     create_client = None
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+
+# --- robust env loading ---
+def _env(name, *alts):
+    for k in (name,)+alts:
+        v = os.getenv(k)
+        if v and isinstance(v, str) and v.strip() and v.strip() not in ("...", "<set-me>", "CHANGE_ME"):
+            return v.strip().strip('"').strip("'")
+    return None
+
+_client_cache = None
 
 def get_client():
-    if not create_client or not SUPABASE_URL or not SUPABASE_KEY:
+    global _client_cache
+    if _client_cache:
+        return _client_cache
+    url = _env("SUPABASE_URL")
+    key = _env("SUPABASE_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY")
+    if not url or not key:
+        return None
+    # quick sanity: looks like a Supabase URL and a JWT-ish key
+    if "supabase.co" not in url or not url.startswith("https://"):
         return None
     try:
-        return create_client(SUPABASE_URL, SUPABASE_KEY)
+        c = create_client(url, key)
+        _client_cache = c
+        return c
     except Exception:
         return None
-
 # ---- USERS / SUBSCRIPTIONS ----
 def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     sb = get_client()
@@ -265,19 +283,35 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 from supabase import create_client
 
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+
+
+# --- robust env loading ---
+def _env(name, *alts):
+    for k in (name,)+alts:
+        v = os.getenv(k)
+        if v and isinstance(v, str) and v.strip() and v.strip() not in ("...", "<set-me>", "CHANGE_ME"):
+            return v.strip().strip('"').strip("'")
+    return None
+
+_client_cache = None
 
 def get_client():
-    if not (SUPABASE_URL and SUPABASE_KEY):
+    global _client_cache
+    if _client_cache:
+        return _client_cache
+    url = _env("SUPABASE_URL")
+    key = _env("SUPABASE_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY")
+    if not url or not key:
+        return None
+    # quick sanity: looks like a Supabase URL and a JWT-ish key
+    if "supabase.co" not in url or not url.startswith("https://"):
         return None
     try:
-        return create_client(SUPABASE_URL, SUPABASE_KEY)
+        c = create_client(url, key)
+        _client_cache = c
+        return c
     except Exception:
         return None
-
-
-
 def hash_pwd(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
