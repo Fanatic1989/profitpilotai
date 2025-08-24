@@ -8,6 +8,9 @@
   <h2>Create your account</h2>
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
   <form method="post" action="/register">
+    <label>Name <input type="text" name="name" required></label>
+    <label>Address <input type="text" name="address" required></label>
+    <label>Login ID <input type="text" name="login_id" required></label>
     <label>Email <input type="email" name="email" required></label>
     <label>Password <input type="password" name="password" required minlength="8"></label>
     <button type="submit">Create account</button>
