@@ -325,3 +325,15 @@ def _debug_supabase():
 def login_form(request: Request):
     # show login page
     return templates.TemplateResponse("login.html", {"request": request})
+
+
+from fastapi import Request
+from fastapi.responses import RedirectResponse
+
+def require_admin(request: Request):
+    if not request.session.get("auth_ok"):
+        return RedirectResponse("/login", status_code=302)
+    user = request.session.get("user") or {}
+    if user.get("role") != "admin":
+        return RedirectResponse("/dashboard", status_code=302)
+    return None
