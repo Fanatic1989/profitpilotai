@@ -18,6 +18,10 @@ from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi import FastAPI, Request, Form, HTTPException
 from loguru import logger
 
+
+from fastapi import Request, Form
+from .auth import verify_pwd
+from .supabase_utils import get_user_by_login_or_email, clear_attempts, is_rate_limited, record_failed_attempt
 app = FastAPI(title="ProfitPilotAI", version="0.1")
 
 # Static & templates
