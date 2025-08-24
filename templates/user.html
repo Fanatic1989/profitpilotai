@@ -10,6 +10,24 @@
 <main class="container">
   <section class="panel" style="grid-column:1 / -1">
     <h2>Subscription</h2>
+    {% if active %}
+      {% if remaining_days is not none %}
+        <p>Status: <strong>Active</strong> — <strong>{{ remaining_days }}</strong> day{{ 1 if remaining_days==1 else "s" }} remaining.</p>
+        {% if remaining_days <= 5 %}
+          <form method="post" action="/crypto/subscribe">
+            <button type="submit">Renew now (Crypto) – $100 / month</button>
+          </form>
+        {% endif %}
+      {% else %}
+        <p>Status: <strong>Active</strong> — <strong>Lifetime</strong></p>
+      {% endif %}
+    {% else %}
+      <p>No active subscription.</p>
+      <form method="post" action="/crypto/subscribe">
+        <button type="submit">Pay with Crypto – $100 / month</button>
+      </form>
+    {% endif %}
+
     {% if sub %}
       <p>Status: <strong>{{ sub.status or 'unknown' }}</strong></p>
       <p>Renews: <code>{{ sub.current_period_end or '—' }}</code></p>
