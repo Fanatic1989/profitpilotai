@@ -1,64 +1,16 @@
-<!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<!doctype html><html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Admin • ProfitPilotAI</title>
 <link rel="stylesheet" href="/static/style.css">
 </head><body>
 <header class="topbar">
   <div>ProfitPilotAI • Admin</div>
-  <div class="header-right">
-    {% if users and users|length > 0 %}
-      <span class="badge active">Users: {{ users|length }}</span>
-    {% endif %}
-    <nav><a href="/logout">Logout</a></nav>
-  </div>
+  <nav><a href="/logout">Logout</a></nav>
 </header>
-
 <main class="container">
   <section class="panel">
-    <h2>Add / Update User</h2>
-    <form method="post" action="/_admin/users/add">
-      <label>Email <input type="email" name="email" required></label>
-      <label>Plan
-        <select name="plan" required>
-          <option value="WEEK">1 Week</option>
-          <option value="MONTH">1 Month</option>
-          <option value="YEAR">1 Year</option>
-          <option value="LIFETIME">Lifetime</option>
-        </select>
-      </label>
-      <button type="submit">Save</button>
-    </form>
-  </section>
-
-  <section class="panel">
-    <h2>Delete User</h2>
-    <form method="post" action="/_admin/users/delete">
-      <label>Email <input type="email" name="email" required></label>
-      <button type="submit">Delete</button>
-    </form>
-  </section>
-
-  <section class="panel" style="grid-column: 1 / -1;">
-    <h2>Active Users</h2>
-    {% if err %}<div class="error">{{ err }}</div>{% endif %}
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>Email</th><th>Plan</th><th>Expires</th><th>Joined</th></tr>
-        </thead>
-        <tbody>
-          {% for u in users or [] %}
-          <tr>
-            <td>{{ u.email }}</td>
-            <td>{{ u.plan }}</td>
-            <td>{{ u.expires_at or '∞' }}</td>
-            <td>{{ u.created_at }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+    <h2>Overview</h2>
+    <p>Welcome, admin.</p>
   </section>
 </main>
 </body></html>
