@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.templating import Jinja2Templates
 import uvicorn
+from .nowpayments import create_invoice, verify_ipn_signature
 from .supabase_utils import get_client
 from .payments import create_checkout_session
 from .auth import create_user, get_user_by_email, verify_pwd, set_role_admin
@@ -199,3 +200,55 @@ def uptime_head():
 @app.get("/uptime")
 def uptime_get():
     return {"ok": True}
+
+@app.post("/crypto/subscribe")
+async def crypto_subscribe(request: Request):
+    if not request.session.get("auth_ok"):
+        return RedirectResponse("/", status_code=302)
+    email = request.session.get("user")
+    url = await create_invoice(email=email, price_amount=100.0, price_currency="usd")
+    if not url:
+        return HTMLResponse("<h3>Crypto payments not configured.</h3>", status_code=500)
+    return RedirectResponse(url, status_code=303)
+
+@app.post("/crypto/ipn")
+async def crypto_ipn(request: Request):
+    raw = await request.body()
+    sig = request.headers.get("x-nowpayments-sig", "")
+    ok = verify_ipn_signature(raw, sig)
+    if not ok:
+        logger.warning("Invalid NOWPayments signature")
+        return JSONResponse({"ok": False, "error": "bad signature"}, status_code=400)
+
+    data = await request.json()
+    # Typical statuses: waiting, confirming, confirmed, finished, failed, refunded
+    payment_status = data.get("payment_status")
+    order_id = data.get("order_id","")
+    invoice_id = data.get("invoice_id")
+    pay_currency = data.get("pay_currency")
+    price_amount = data.get("price_amount")
+    email = order_id.replace("ppai-","") if order_id.startswith("ppai-") else None
+
+    if not email:
+        return JSONResponse({"ok": False, "error": "no email"}, status_code=400)
+
+    # Activate only when "finished" (paid and confirmed)
+    if payment_status in ("finished", "confirmed"):
+        sb = get_client()
+        if not sb:
+            return JSONResponse({"ok": False, "error": "Supabase not configured"}, status_code=500)
+        try:
+            u = sb.table("app_users").select("id").eq("email", email).single().execute().data
+            # upsert a subscription row
+            sb.table("subscriptions").upsert({
+                "user_id": u["id"],
+                "status": "active",
+                "stripe_customer_id": None,
+                "stripe_subscription_id": f"np_{invoice_id}",
+                "current_period_end": None  # crypto plan could be treated as lifetime or handled manually
+            }, on_conflict="stripe_subscription_id").execute()
+        except Exception as e:
+            logger.exception("crypto ipn supabase upsert failed")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    return JSONResponse({"ok": True})
