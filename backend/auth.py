@@ -80,3 +80,13 @@ def finish_password_reset(token: str, new_password: str) -> bool:
         return True
     except Exception:
         return False
+
+
+# --- shims for legacy imports (main.py expects these here) ---
+from .supabase_utils import get_user_by_email as _sb_get_user_by_email, set_role_admin as _sb_set_role_admin
+
+def get_user_by_email(email: str):
+    return _sb_get_user_by_email(email)
+
+def set_role_admin(email: str) -> bool:
+    return _sb_set_role_admin(email)
