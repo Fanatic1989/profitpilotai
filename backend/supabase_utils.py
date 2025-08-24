@@ -217,3 +217,30 @@ def list_active_users() -> List[Dict[str, Any]]:
 # Optional: expose last client error to the debug endpoint
 def _last_error() -> Optional[str]:
     return _LAST_ERROR
+
+def get_user_by_email(email: str):
+    sb = get_client()
+    if not sb:
+        return None
+    try:
+        res = sb.table("app_users").select("*").eq("email", email.strip()).limit(1).execute()
+        rows = res.data or []
+        return rows[0] if rows else None
+    except Exception:
+        return None
+
+def set_role_admin(email: str) -> bool:
+    sb = get_client()
+    if not sb:
+        return False
+    try:
+        # ensure user exists
+        res = sb.table("app_users").select("id,role").eq("email", email.strip()).limit(1).execute()
+        rows = res.data or []
+        if not rows:
+            return False
+        uid = rows[0]["id"]
+        sb.table("app_users").update({"role": "admin"}).eq("id", uid).execute()
+        return True
+    except Exception:
+        return False
