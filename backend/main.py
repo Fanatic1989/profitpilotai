@@ -22,7 +22,7 @@ templates = Jinja2Templates(directory="templates")
 
 # Sessions
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, session_cookie="ppai_sess", max_age=60*60*12)
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, session_cookie="ppai_sess", max_age=60*60*12, https_only=True, same_site="lax")
 
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
