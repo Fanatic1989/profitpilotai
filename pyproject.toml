@@ -6,6 +6,7 @@ authors = ["Chris <you@example.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
+gotrue = "2.9.0"
 passlib = "^1.7.4"
 bcrypt = "^4.2.0"
 python = "^3.11"
