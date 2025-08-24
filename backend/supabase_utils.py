@@ -38,25 +38,24 @@ _client_cache = None
 _last_client_error = None
 
 def get_client():
-    global _client_cache
+    global _client_cache, _last_client_error
     if _client_cache:
         return _client_cache
     url = _env("SUPABASE_URL")
-    key = _env("SUPABASE_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY")
-    if not url or not key:
+    key = _env("SUPABASE_KEY","SUPABASE_SERVICE_ROLE_KEY","SUPABASE_SERVICE_KEY")
+    if not url or not key or "supabase.co" not in url or not url.startswith("https://"):
+        _last_client_error = "Missing/invalid SUPABASE_URL or KEY"
         return None
-    # quick sanity: looks like a Supabase URL and a JWT-ish key
-    if "supabase.co" not in url or not url.startswith("https://"):
-        return None
+    # ensure httpx shim is installed before any client instantiation
+    _patch_httpx_proxy_kw()
     try:
         c = create_client(url, key)
         _client_cache = c
+        _last_client_error = None
         return c
     except Exception as e:
-        global _last_client_error
         _last_client_error = str(e)
         return None
-# ---- USERS / SUBSCRIPTIONS ----
 def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     sb = get_client()
     if not sb:
@@ -318,22 +317,22 @@ _client_cache = None
 _last_client_error = None
 
 def get_client():
-    global _client_cache
+    global _client_cache, _last_client_error
     if _client_cache:
         return _client_cache
     url = _env("SUPABASE_URL")
-    key = _env("SUPABASE_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY")
-    if not url or not key:
+    key = _env("SUPABASE_KEY","SUPABASE_SERVICE_ROLE_KEY","SUPABASE_SERVICE_KEY")
+    if not url or not key or "supabase.co" not in url or not url.startswith("https://"):
+        _last_client_error = "Missing/invalid SUPABASE_URL or KEY"
         return None
-    # quick sanity: looks like a Supabase URL and a JWT-ish key
-    if "supabase.co" not in url or not url.startswith("https://"):
-        return None
+    # ensure httpx shim is installed before any client instantiation
+    _patch_httpx_proxy_kw()
     try:
         c = create_client(url, key)
         _client_cache = c
+        _last_client_error = None
         return c
     except Exception as e:
-        global _last_client_error
         _last_client_error = str(e)
         return None
 def hash_pwd(password: str) -> str:
