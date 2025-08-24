@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Your Dashboard • ProfitPilotAI</title>
+<link rel="stylesheet" href="/static/style.css">
+</head><body>
+<header class="topbar">
+  <div>ProfitPilotAI • Dashboard</div>
+  <nav><a href="/logout">Logout</a></nav>
+</header>
+<main class="container">
+  <section class="panel">
+    <h2>Welcome, {{ user.name or user.login_id or user.email }}</h2>
+    <p>Status: <strong>{{ 'Active' if active else 'Expired/None' }}</strong></p>
+    {% if sub %}
+      <p>Plan: {{ sub.plan }} | Renews: {{ sub.current_period_end }}</p>
+    {% endif %}
+  </section>
+</main>
+</body></html>
