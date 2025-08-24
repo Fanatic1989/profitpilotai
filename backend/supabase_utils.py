@@ -19,6 +19,8 @@ def _env(name, *alts):
 
 _client_cache = None
 
+_last_client_error = None
+
 def get_client():
     global _client_cache
     if _client_cache:
@@ -34,7 +36,9 @@ def get_client():
         c = create_client(url, key)
         _client_cache = c
         return c
-    except Exception:
+    except Exception as e:
+        global _last_client_error
+        _last_client_error = str(e)
         return None
 # ---- USERS / SUBSCRIPTIONS ----
 def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
@@ -295,6 +299,8 @@ def _env(name, *alts):
 
 _client_cache = None
 
+_last_client_error = None
+
 def get_client():
     global _client_cache
     if _client_cache:
@@ -310,7 +316,9 @@ def get_client():
         c = create_client(url, key)
         _client_cache = c
         return c
-    except Exception:
+    except Exception as e:
+        global _last_client_error
+        _last_client_error = str(e)
         return None
 def hash_pwd(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()

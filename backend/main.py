@@ -308,4 +308,9 @@ def _debug_supabase():
     key = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SERVICE_KEY") or ""
     masked = (key[:4] + "…" + key[-4:]) if key and len(key) > 12 else ("set" if key else "")
     ok = bool(get_client())
-    return {"url_present": bool(url), "key_present": bool(key), "key_masked": masked, "client_ok": ok}
+    try:
+        from .supabase_utils import _last_client_error
+        err = _last_client_error
+    except Exception:
+        err = None
+    return {"url_present": bool(url), "key_present": bool(key), "key_masked": masked, "client_ok": ok, "last_error": err}
