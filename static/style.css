@@ -12,3 +12,8 @@ button{margin-top:12px;width:100%;padding:11px 14px;background:var(--accent);col
 .container{max-width:980px;margin:20px auto;padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .panel{background:var(--card);border:1px solid #1f2937;border-radius:14px;padding:16px}
 @media (max-width:800px){.container{grid-template-columns:1fr}}
+
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;border-bottom:1px solid #1f2937;text-align:left}
+th{color:var(--muted);font-weight:600}
