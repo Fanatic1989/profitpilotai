@@ -243,3 +243,18 @@ def reset_do(request: Request, token: str, password: str = Form(...)):
     if finish_password_reset(token, password):
         return HTMLResponse("<h3>Password updated. You can now <a href='/'>sign in</a>.</h3>")
     return templates.TemplateResponse("reset.html", {"request": request, "token": token, "error": "Invalid or expired token"}, status_code=400)
+
+
+@app.get("/_debug/versions")
+def _debug_versions():
+    import sys, pkgutil, importlib
+    wanted = ["httpx","supabase","gotrue","httpcore","starlette","fastapi"]
+    out = {}
+    for name in wanted:
+        try:
+            m = importlib.import_module(name)
+            out[name] = getattr(m, "__version__", "unknown")
+        except Exception as e:
+            out[name] = f"missing: {e}"
+    out["python"] = sys.version
+    return out
