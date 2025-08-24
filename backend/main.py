@@ -258,3 +258,7 @@ def _debug_versions():
             out[name] = f"missing: {e}"
     out["python"] = sys.version
     return out
+
+@app.get("/_ping")
+def ping():
+    return {"ok": True}
