@@ -1,3 +1,4 @@
+from fastapi.responses import HTMLResponse, RedirectResponse
 import os
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import RedirectResponse
@@ -262,3 +263,38 @@ def _debug_versions():
 @app.get("/_ping")
 def ping():
     return {"ok": True}
+
+
+@app.get("/admin/users")
+def admin_users(request: Request):
+    if not request.session.get("auth_ok") or request.session.get("role") != "admin":
+        return RedirectResponse(url="/login", status_code=302)
+    users = list_active_users()
+    return templates.TemplateResponse("admin_users.html", {"request": request, "users": users})
+
+@app.post("/admin/users/grant")
+def admin_grant(request: Request, identifier: str = Form(...), plan: str = Form(...)):
+    if not request.session.get("auth_ok") or request.session.get("role") != "admin":
+        return RedirectResponse(url="/login", status_code=302)
+    ok = grant_user(identifier, plan)
+    msg = "Granted" if ok else "Failed"
+    users = list_active_users()
+    return templates.TemplateResponse("admin_users.html", {"request": request, "users": users, "flash": f"{msg} {identifier} => {plan}"})
+
+@app.post("/admin/users/delete")
+def admin_delete(request: Request, identifier: str = Form(...)):
+    if not request.session.get("auth_ok") or request.session.get("role") != "admin":
+        return RedirectResponse(url="/login", status_code=302)
+    ok = delete_user(identifier)
+    msg = "Deleted" if ok else "Failed"
+    users = list_active_users()
+    return templates.TemplateResponse("admin_users.html", {"request": request, "users": users, "flash": f"{msg} {identifier}"})
+
+
+@app.get("/admin")
+def admin_home(request: Request):
+    if not request.session.get("auth_ok"):
+        return RedirectResponse(url="/login", status_code=302)
+    if request.session.get("role") != "admin":
+        return HTMLResponse("<h3>Forbidden</h3>", status_code=403)
+    return templates.TemplateResponse("admin.html", {"request": request})
